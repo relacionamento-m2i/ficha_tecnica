@@ -22,6 +22,13 @@ if 'db_servicos' not in st.session_state:
 
 lista_nomes_servicos = list(st.session_state['db_servicos'].keys())
 
+
+def garantir_estado_ficha_padrao():
+    """Garante que as chaves obrigatórias da ficha técnica existam no session_state."""
+    st.session_state.setdefault('custo_aluguel', 0.0)
+    st.session_state.setdefault('indireto', "Sim")
+    st.session_state.setdefault('valor_hora', 48.14)
+
 # 2. Garante que as variáveis da Ficha Técnica existam logo na abertura do app
 if 'servico_atual' not in st.session_state:
     primeiro_servico = lista_nomes_servicos[0]
@@ -39,6 +46,8 @@ if 'servico_atual' not in st.session_state:
     st.session_state['custo_aluguel'] = 0.0
     st.session_state['indireto'] = "Sim"
     st.session_state['valor_hora'] = 48.14
+
+garantir_estado_ficha_padrao()
 
 # ==========================================
 # MENU LATERAL
@@ -61,7 +70,8 @@ with st.sidebar:
 # MÓDULO 1: FICHA TÉCNICA
 # ==========================================
 def render_ficha_tecnica():
-    
+    garantir_estado_ficha_padrao()
+
     lista_nomes_servicos = list(st.session_state['db_servicos'].keys())
 
     def carregar_servico_para_estado(nome_servico):
