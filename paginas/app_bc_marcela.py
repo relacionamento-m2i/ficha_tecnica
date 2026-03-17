@@ -91,7 +91,7 @@ if "df_lista_equipamentos" not in st.session_state:
 if "df_lista_insumos" not in st.session_state:
     st.session_state["df_lista_insumos"] = pd.DataFrame({
         "Material": [
-            "AGULHA", "SERINGA", "ALGODÃO ROLO HIDROFILO 500GR", "SORO FISIOLOGICO 250ML", 
+            "ALGODÃO ROLO HIDROFILO 500GR", "SORO FISIOLOGICO 250ML", 
             "GESTRINONA 40 MG - IMPLANTE SILAST", "FIBROMIALGIA", "TESTOSTERONA 200 MG - IMPLANTE", 
             "TESTOSTERONA 50 MG - IMPLANTE", "SORO FISOLOGICO 500 ML", "LIDOCAINA XYLESTESIN 2% COM VASO", 
             "ÁGUA DESTILADA 10 ML", "KIT CRESCIMENTO DOS FIOS", "KIT HIDRATAÇÃO DOS FIOS", 
