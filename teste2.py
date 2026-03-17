@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import json
+import plotly.express as px
 
 # Fallback caso o arquivo banco_servicos não esteja no mesmo diretório na hora do teste
 try:
@@ -185,33 +186,58 @@ def render_ficha_tecnica():
     </div>
     """, unsafe_allow_html=True)
 
-    c1, c2, c3 = st.columns([2, 1, 1])
-    with c1:
-        with st.expander("➕ Adicionar Novo Serviço", expanded=False):
-            with st.form("form_novo_servico", clear_on_submit=True):
-                novo_nome = st.text_input("Nome do Novo Serviço:")
-                if st.form_submit_button("Criar Serviço"):
-                    if novo_nome and novo_nome not in st.session_state["db_servicos"]:
-                        st.session_state["db_servicos"][novo_nome] = {
-                            "tempo_min": 60, "maquinas": [], "repasse_fixo": 0.0, "insumos": [],
-                            "taxas": {"comissao": 0.0, "cartao": 0.0, "imposto": 12.0, "repasse_liq": 0.0, "lucro": 0.0},
-                            "preco_escolhido": 0.0
-                        }
-                        carregar_servico_para_estado(novo_nome)
-                        st.rerun()
-                    elif novo_nome in st.session_state["db_servicos"]:
-                        st.warning("Serviço já existe.")
-    with c2:
-        if st.button("🗑️ Excluir Atual", use_container_width=True):
-            atual = st.session_state.get("servico_atual")
-            if atual in st.session_state["db_servicos"]:
-                del st.session_state["db_servicos"][atual]
-                st.session_state["servico_atual"] = ""
-                if st.session_state["db_servicos"]:
-                    carregar_servico_para_estado(list(st.session_state["db_servicos"].keys())[0])
+    st.subheader("⚙️ Gerenciar Serviços")
+    tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
+    opcoes_servicos = list(st.session_state["db_servicos"].keys())
+
+    with tab_add:
+        c1, c2 = st.columns([2, 1])
+        novo_nome = c1.text_input("Nome do Novo Serviço:")
+        st.write("")
+        if c2.button("Criar Serviço", use_container_width=True):
+            if novo_nome and novo_nome not in st.session_state["db_servicos"]:
+                st.session_state["db_servicos"][novo_nome] = {
+                    "tempo_min": 60, "maquinas": [], "repasse_fixo": 0.0, "insumos": [],
+                    "taxas": {"comissao": 0.0, "cartao": 0.0, "imposto": 12.0, "repasse_liq": 0.0, "lucro": 0.0},
+                    "preco_escolhido": 0.0
+                }
+                carregar_servico_para_estado(novo_nome)
                 st.rerun()
-    with c3:
-        if st.button("⚠️ Excluir TODOS", type="primary", use_container_width=True):
+            elif novo_nome in st.session_state["db_servicos"]:
+                st.warning("Serviço já existe.")
+                
+    with tab_ren:
+        c1, c2, c3 = st.columns([2, 2, 1])
+        servico_renomear = c1.selectbox("Serviço atual:", options=opcoes_servicos, key="sel_ren_serv")
+        novo_nome_serv = c2.text_input("Mudar para:", value=servico_renomear if opcoes_servicos else "", key="input_ren_serv")
+        st.write("")
+        if c3.button("Salvar Nome", use_container_width=True):
+            if novo_nome_serv and novo_nome_serv != servico_renomear:
+                novo_dict = {}
+                for k, v in st.session_state["db_servicos"].items():
+                    if k == servico_renomear:
+                        novo_dict[novo_nome_serv] = v
+                    else:
+                        novo_dict[k] = v
+                st.session_state["db_servicos"] = novo_dict
+                if st.session_state.get("servico_atual") == servico_renomear:
+                    st.session_state["servico_atual"] = novo_nome_serv
+                st.rerun()
+
+    with tab_del:
+        c1, c2, c3 = st.columns([2, 1, 1])
+        servico_remover = c1.selectbox("Selecione para remover:", options=opcoes_servicos, key="sel_rem_serv")
+        st.write("")
+        if c2.button("🗑️ Remover Selecionado", use_container_width=True):
+            if servico_remover in st.session_state["db_servicos"]:
+                del st.session_state["db_servicos"][servico_remover]
+                if st.session_state.get("servico_atual") == servico_remover:
+                    st.session_state["servico_atual"] = ""
+                    if st.session_state["db_servicos"]:
+                        carregar_servico_para_estado(list(st.session_state["db_servicos"].keys())[0])
+                st.rerun()
+        st.write("")
+        if c3.button("⚠️ Excluir TODOS", type="primary", use_container_width=True):
             st.session_state["db_servicos"] = {}
             st.session_state["servico_atual"] = ""
             st.rerun()
@@ -265,7 +291,7 @@ def render_ficha_tecnica():
                 st.rerun()
                 
         with st.form("form_add_maq", clear_on_submit=True):
-            st.write("➕ Adicionar Máquina")
+            st.write("➕ Adicionar Máquina ao Serviço")
             c1, c2, c3 = st.columns([4, 2, 2])
             n_nome = c1.text_input("Nome da Máquina")
             n_custo = c2.number_input("Custo (R$)", min_value=0.0, step=10.0, format="%.2f")
@@ -292,7 +318,7 @@ def render_ficha_tecnica():
                 st.rerun()
 
         with st.form("form_add_ins", clear_on_submit=True):
-            st.write("➕ Adicionar Insumo")
+            st.write("➕ Adicionar Insumo ao Serviço")
             c1, c2, c3, c4 = st.columns([3, 2, 2, 2])
             n_mat = c1.text_input("Material")
             n_qt = c2.number_input("Qtd", min_value=0.01, step=1.0)
@@ -420,11 +446,9 @@ def render_custos_fixos():
                 for idx, reg in enumerate(registros):
                     c1, c2, c3 = st.columns([5, 3, 1])
                     
-                    # O usuário altera direto aqui e o Streamlit salva o estado
                     novo_item = c1.text_input("Descrição", value=reg['ÍTEM'], key=f"edit_item_{chave}_{idx}", label_visibility="collapsed")
                     novo_valor = c2.number_input("Valor", value=float(reg['MENSAL (R$)']), min_value=0.0, step=10.0, format="%.2f", key=f"edit_val_{chave}_{idx}", label_visibility="collapsed")
                     
-                    # Atualiza o registro em tempo real
                     registros[idx]['ÍTEM'] = novo_item
                     registros[idx]['MENSAL (R$)'] = novo_valor
                     
@@ -433,14 +457,11 @@ def render_custos_fixos():
                         st.session_state["df_custos_categorias"][titulo] = pd.DataFrame(registros) if registros else pd.DataFrame(columns=["ÍTEM", "MENSAL (R$)"])
                         st.rerun()
                         
-                # Atualiza o dataframe principal com as edições
                 st.session_state["df_custos_categorias"][titulo] = pd.DataFrame(registros) if registros else pd.DataFrame(columns=["ÍTEM", "MENSAL (R$)"])
-
             else:
                 st.info("Nenhuma despesa cadastrada.")
 
             st.markdown("---")
-            # Formulário para adicionar novos itens
             with st.form(f"form_add_{chave}", clear_on_submit=True):
                 st.caption("Adicionar nova despesa:")
                 c1, c2, c3 = st.columns([4, 2, 2])
@@ -474,9 +495,7 @@ def render_custos_fixos():
 
     st.subheader("⚙️ Gerenciar Categorias")
     
-    # Transformado em Abas para ficar mais enxuto e organizado
     tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
-    
     opcoes_cat = list(st.session_state["df_custos_categorias"].keys())
     
     with tab_add:
@@ -490,12 +509,11 @@ def render_custos_fixos():
                 
     with tab_ren:
         c1, c2, c3 = st.columns([2, 2, 1])
-        cat_renomear = c1.selectbox("Categoria atual:", options=opcoes_cat, key="sel_renomear")
-        novo_nome_cat = c2.text_input("Mudar para:", value=cat_renomear if opcoes_cat else "")
+        cat_renomear = c1.selectbox("Categoria atual:", options=opcoes_cat, key="sel_ren_cat")
+        novo_nome_cat = c2.text_input("Mudar para:", value=cat_renomear if opcoes_cat else "", key="in_ren_cat")
         st.write("")
         if c3.button("Salvar Nome", use_container_width=True):
             if novo_nome_cat and novo_nome_cat != cat_renomear:
-                # Mantém a ordem do dicionário recriando-o
                 novo_dict = {}
                 for k, v in st.session_state["df_custos_categorias"].items():
                     if k == cat_renomear:
@@ -507,7 +525,7 @@ def render_custos_fixos():
 
     with tab_del:
         c1, c2, c3 = st.columns([2, 1, 1])
-        cat_remover = c1.selectbox("Selecione para remover:", options=opcoes_cat, key="sel_remover")
+        cat_remover = c1.selectbox("Selecione para remover:", options=opcoes_cat, key="sel_rem_cat")
         st.write("")
         if c2.button("🗑️ Remover Selecionada", use_container_width=True):
             if cat_remover in st.session_state["df_custos_categorias"]:
@@ -548,7 +566,6 @@ def render_custos_fixos():
         with col_p2:
             qtd_salas = st.number_input("Qtd de Salas", value=4.0, step=1.0, format="%.1f")
 
-        # Cálculos Automáticos
         horas_semanais = horas_diarias * dias_semana
         horas_mensais = horas_semanais * 4.5
         
@@ -565,7 +582,6 @@ def render_custos_fixos():
         st.write(f"**Custo Hora Atendimento (por sala):** R$ {custo_hora_atendimento:,.2f}")
         st.write(f"**Custo Dia Atendimento (por sala):** R$ {custo_dia_atendimento:,.2f}")
 
-        # Mini-Manual Retrátil
         with st.expander("ℹ️ Entenda como os índices são calculados"):
             st.markdown("""
             * **Horas Mensais:** `(Horas Diárias x Dias na Semana) x 4,5 semanas`
@@ -576,20 +592,81 @@ def render_custos_fixos():
             """)
 
     st.divider()
+    
+    # -------------------------------------------------------------
+    # RESUMO GERAL + GRÁFICO AVANÇADO DE ANÁLISE (PLOTLY)
+    # -------------------------------------------------------------
     st.subheader("RESUMO GERAL")
-    if resumo_dados:
-        df_resumo = pd.DataFrame(resumo_dados)
-        df_resumo["% de Custo"] = (df_resumo["Média Mensal"] / despesa_mensal_media) if despesa_mensal_media > 0 else 0.0
-        st.dataframe(
-            df_resumo.style.format({
-                "Média Mensal": "R$ {:,.2f}", 
-                "% de Custo": "{:.1%}"
-            }), 
-            use_container_width=True, 
-            hide_index=True
-        )
-    else:
-        st.warning("Adicione categorias e valores para ver o resumo geral.")
+    col_tabela, col_grafico = st.columns([1, 2])
+    
+    with col_tabela:
+        if resumo_dados:
+            df_resumo = pd.DataFrame(resumo_dados)
+            df_resumo["% de Custo"] = (df_resumo["Média Mensal"] / despesa_mensal_media) if despesa_mensal_media > 0 else 0.0
+            st.dataframe(
+                df_resumo.style.format({
+                    "Média Mensal": "R$ {:,.2f}", 
+                    "% de Custo": "{:.1%}"
+                }), 
+                use_container_width=True, 
+                hide_index=True
+            )
+        else:
+            st.warning("Adicione categorias e valores para ver o resumo geral.")
+
+    with col_grafico:
+        dados_grafico = []
+        for cat, df_cat in st.session_state["df_custos_categorias"].items():
+            total_cat = pd.to_numeric(df_cat["MENSAL (R$)"], errors="coerce").fillna(0.0).sum()
+            for _, row in df_cat.iterrows():
+                valor = float(row.get("MENSAL (R$)", 0.0))
+                if valor > 0:
+                    pct_cat = valor / total_cat if total_cat > 0 else 0.0
+                    pct_total = valor / despesa_mensal_media if despesa_mensal_media > 0 else 0.0
+                    dados_grafico.append({
+                        "Categoria": cat,
+                        "Subitem": row["ÍTEM"],
+                        "Valor (R$)": valor,
+                        "% na Categoria": pct_cat,
+                        "% no Total": pct_total
+                    })
+
+        if dados_grafico:
+            df_grafico = pd.DataFrame(dados_grafico)
+            df_grafico = df_grafico.sort_values(by="Valor (R$)", ascending=True)
+
+            fig = px.bar(
+                df_grafico,
+                x="Valor (R$)",
+                y="Subitem",
+                color="Categoria",
+                orientation="h",
+                text="Valor (R$)", 
+                custom_data=["% na Categoria", "% no Total"],
+                title="Despesa Mensal por Subitem"
+            )
+            
+            fig.update_traces(
+                texttemplate='R$ %{text:,.2f}', 
+                textposition='outside',
+                hovertemplate="<b>%{y}</b><br>Valor Mensal: R$ %{x:,.2f}<br>% na Categoria: %{customdata[0]:.1%}<br>% no Total Geral: %{customdata[1]:.1%}<extra></extra>"
+            )
+            
+            altura_grafico = max(400, len(df_grafico) * 35)
+            
+            fig.update_layout(
+                height=altura_grafico,
+                margin=dict(l=10, r=10, t=40, b=10),
+                yaxis_title="",
+                xaxis_title="Valor Mensal (R$)",
+                legend_title="Categoria",
+                plot_bgcolor="rgba(0,0,0,0)"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("📊 Preencha valores maiores que zero nas despesas para visualizar o gráfico detalhado.")
+
 
 # ==========================================
 # MÓDULO 3: EQUIPAMENTOS
@@ -598,55 +675,97 @@ def render_equipamentos():
     if "df_lista_equipamentos" not in st.session_state:
         st.session_state["df_lista_equipamentos"] = pd.DataFrame({
             "Nome do equipamento": ["USG PHILLIPS"],
-            "Valor de aquisição (R$)": [100000.00], "Tempo de vida útil (anos)": [10.0],
-            "Capacidade aplicações/dia": [8.0], "Aplicações (média diária)": [8.0], "Custo anual de manutenção (R$)": [1000.00]
+            "Valor de aquisição (R$)": [100000.00], 
+            "Tempo de vida útil (anos)": [10.0],
+            "Capacidade de Aplicações / dia (R$)": [800.00], 
+            "Aplicações (média diária)": [8.0], 
+            "Custo anual de manutenção (R$)": [1000.00]
         })
 
     st.title("Registro de Equipamentos")
-    df_eq = st.session_state["df_lista_equipamentos"]
     
-    with st.expander("➕ Adicionar Novo Equipamento", expanded=True):
+    st.subheader("⚙️ Gerenciar Equipamentos")
+    tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
+    df_eq = st.session_state["df_lista_equipamentos"]
+    opcoes_eq = df_eq["Nome do equipamento"].tolist()
+
+    with tab_add:
         with st.form("form_add_eq", clear_on_submit=True):
             c1, c2, c3 = st.columns(3)
             n_nome = c1.text_input("Nome do Equipamento")
             n_valor = c2.number_input("Valor Aquisição (R$)", min_value=0.0, step=100.0, format="%.2f")
             n_vida = c3.number_input("Vida Útil (Anos)", min_value=1.0, step=1.0, format="%.1f")
-            n_cap = c1.number_input("Capacidade (apps/dia)", min_value=1.0, step=1.0, format="%.1f")
-            n_apps = c2.number_input("Média Diária (apps)", min_value=1.0, step=1.0, format="%.1f")
+            n_cap = c1.number_input("Capacidade de Aplicações / dia (R$)", min_value=0.0, step=10.0, format="%.2f")
+            n_apps = c2.number_input("Aplicações (média diária)", min_value=1.0, step=1.0, format="%.1f")
             n_manut = c3.number_input("Manutenção Anual (R$)", min_value=0.0, step=10.0, format="%.2f")
             
             if st.form_submit_button("Adicionar à Lista"):
                 if n_nome:
                     novo_df = pd.DataFrame([{
-                        "Nome do equipamento": n_nome, "Valor de aquisição (R$)": float(n_valor),
-                        "Tempo de vida útil (anos)": float(n_vida), "Capacidade aplicações/dia": float(n_cap),
-                        "Aplicações (média diária)": float(n_apps), "Custo anual de manutenção (R$)": float(n_manut)
+                        "Nome do equipamento": n_nome, 
+                        "Valor de aquisição (R$)": float(n_valor),
+                        "Tempo de vida útil (anos)": float(n_vida), 
+                        "Capacidade de Aplicações / dia (R$)": float(n_cap),
+                        "Aplicações (média diária)": float(n_apps), 
+                        "Custo anual de manutenção (R$)": float(n_manut)
                     }])
                     st.session_state["df_lista_equipamentos"] = pd.concat([df_eq, novo_df], ignore_index=True)
                     st.rerun()
 
-    c_del, c_limpar = st.columns([3, 1])
-    with c_del:
-        with st.form("rm_eq"):
-            eq_remover = st.selectbox("Selecione equipamento para remover:", options=df_eq["Nome do equipamento"].tolist())
-            if st.form_submit_button("🗑️ Remover"):
-                st.session_state["df_lista_equipamentos"] = df_eq[df_eq["Nome do equipamento"] != eq_remover]
-                st.rerun()
-    with c_limpar:
+    with tab_ren:
+        c1, c2, c3 = st.columns([2, 2, 1])
+        eq_renomear = c1.selectbox("Equipamento atual:", options=opcoes_eq, key="sel_ren_eq")
+        novo_nome_eq = c2.text_input("Mudar para:", value=eq_renomear if opcoes_eq else "", key="in_ren_eq")
         st.write("")
-        if st.button("⚠️ Excluir TODOS", type="primary", use_container_width=True):
+        if c3.button("Salvar Nome", use_container_width=True):
+            if novo_nome_eq and novo_nome_eq != eq_renomear:
+                st.session_state["df_lista_equipamentos"].loc[st.session_state["df_lista_equipamentos"]["Nome do equipamento"] == eq_renomear, "Nome do equipamento"] = novo_nome_eq
+                st.rerun()
+
+    with tab_del:
+        c1, c2, c3 = st.columns([2, 1, 1])
+        eq_remover = c1.selectbox("Selecione para remover:", options=opcoes_eq, key="sel_rem_eq")
+        st.write("")
+        if c2.button("🗑️ Remover Selecionado", use_container_width=True):
+            st.session_state["df_lista_equipamentos"] = df_eq[df_eq["Nome do equipamento"] != eq_remover]
+            st.rerun()
+        st.write("")
+        if c3.button("⚠️ Excluir TODOS", type="primary", use_container_width=True):
             st.session_state["df_lista_equipamentos"] = pd.DataFrame(columns=df_eq.columns)
             st.rerun()
 
-    dias_uteis = st.number_input("Dias úteis no mês:", min_value=1.0, value=22.0, step=1.0, format="%.0f")
+    st.divider()
+    dias_uteis = st.number_input("Dias úteis no mês para cálculo:", min_value=1.0, value=22.0, step=1.0, format="%.0f")
     
     df_calc = st.session_state["df_lista_equipamentos"].copy()
+    
+    # Compatibilidade caso o usuário faça upload de um backup antigo
+    if "Capacidade aplicações/dia" in df_calc.columns:
+        df_calc.rename(columns={"Capacidade aplicações/dia": "Capacidade de Aplicações / dia (R$)"}, inplace=True)
+        st.session_state["df_lista_equipamentos"] = df_calc.copy()
+
     if not df_calc.empty:
-        df_calc["Montante Investido"] = df_calc["Valor de aquisição (R$)"] + (df_calc["Tempo de vida útil (anos)"] * df_calc["Custo anual de manutenção (R$)"])
-        df_calc["Depreciação Mensal"] = df_calc.apply(lambda row: row["Montante Investido"] / (row["Tempo de vida útil (anos)"] * 12) if row["Tempo de vida útil (anos)"] > 0 else 0, axis=1)
-        df_calc["Custo Seção"] = df_calc.apply(lambda row: row["Depreciação Mensal"] / (row["Aplicações (média diária)"] * dias_uteis) if row.get("Aplicações (média diária)", 0) > 0 else 0, axis=1)
+        df_calc["Montante Investido"] = df_calc["Valor de aquisição (R$)"] + (df_calc["Tempo de vida útil (anos)"] * df_calc.get("Custo anual de manutenção (R$)", 0.0))
+        df_calc["Depreciação Mensal"] = df_calc.apply(lambda row: row["Montante Investido"] / (row.get("Tempo de vida útil (anos)", 1) * 12) if row.get("Tempo de vida útil (anos)", 0) > 0 else 0, axis=1)
+        df_calc["Custo Seção"] = df_calc.apply(lambda row: row["Depreciação Mensal"] / (row.get("Aplicações (média diária)", 1) * dias_uteis) if row.get("Aplicações (média diária)", 0) > 0 else 0, axis=1)
         
-        st.dataframe(df_calc.style.format(precision=2), use_container_width=True, hide_index=True)
+        # Formatação bonita da tabela
+        formato_tabela = {
+            "Valor de aquisição (R$)": "R$ {:,.2f}",
+            "Capacidade de Aplicações / dia (R$)": "R$ {:,.2f}",
+            "Custo anual de manutenção (R$)": "R$ {:,.2f}",
+            "Montante Investido": "R$ {:,.2f}",
+            "Depreciação Mensal": "R$ {:,.2f}",
+            "Custo Seção": "R$ {:,.2f}"
+        }
+        st.dataframe(df_calc.style.format(formato_tabela, precision=2), use_container_width=True, hide_index=True)
+
+        with st.expander("ℹ️ Entenda como os índices são calculados"):
+            st.markdown("""
+            * **Montante Investido:** `Valor de Aquisição + (Vida Útil em Anos x Manutenção Anual)`
+            * **Depreciação Mensal:** `Montante Investido / (Vida Útil em Anos x 12 meses)`
+            * **Custo por Seção / Aplicação:** `Depreciação Mensal / (Aplicações (média diária) x Dias Úteis no mês)`
+            """)
 
 # ==========================================
 # MÓDULO 4: INSUMOS
@@ -656,9 +775,13 @@ def render_insumos():
         st.session_state["df_lista_insumos"] = pd.DataFrame({"Material": ["AGULHA"], "qt": [1.0], "valor": [0.56]})
 
     st.title("Lista de Insumos")
+    
+    st.subheader("⚙️ Gerenciar Insumos")
+    tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
     df_ins = st.session_state["df_lista_insumos"]
+    opcoes_ins = df_ins["Material"].tolist()
 
-    with st.expander("➕ Adicionar Insumo", expanded=True):
+    with tab_add:
         with st.form("form_add_ins", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns([4, 2, 2, 2])
             n_mat = c1.text_input("Nome do Material")
@@ -670,19 +793,29 @@ def render_insumos():
                     st.session_state["df_lista_insumos"] = pd.concat([df_ins, novo_df], ignore_index=True)
                     st.rerun()
 
-    c_del, c_limpar = st.columns([3, 1])
-    with c_del:
-        with st.form("rm_ins"):
-            ins_remover = st.selectbox("Remover Insumo:", options=df_ins["Material"].tolist())
-            if st.form_submit_button("🗑️ Remover"):
-                st.session_state["df_lista_insumos"] = df_ins[df_ins["Material"] != ins_remover]
-                st.rerun()
-    with c_limpar:
+    with tab_ren:
+        c1, c2, c3 = st.columns([2, 2, 1])
+        ins_renomear = c1.selectbox("Insumo atual:", options=opcoes_ins, key="sel_ren_ins")
+        novo_nome_ins = c2.text_input("Mudar para:", value=ins_renomear if opcoes_ins else "", key="in_ren_ins")
         st.write("")
-        if st.button("⚠️ Excluir TODOS", type="primary", use_container_width=True):
+        if c3.button("Salvar Nome", use_container_width=True):
+            if novo_nome_ins and novo_nome_ins != ins_renomear:
+                st.session_state["df_lista_insumos"].loc[st.session_state["df_lista_insumos"]["Material"] == ins_renomear, "Material"] = novo_nome_ins
+                st.rerun()
+
+    with tab_del:
+        c1, c2, c3 = st.columns([2, 1, 1])
+        ins_remover = c1.selectbox("Selecione para remover:", options=opcoes_ins, key="sel_rem_ins")
+        st.write("")
+        if c2.button("🗑️ Remover Selecionado", use_container_width=True):
+            st.session_state["df_lista_insumos"] = df_ins[df_ins["Material"] != ins_remover]
+            st.rerun()
+        st.write("")
+        if c3.button("⚠️ Excluir TODOS", type="primary", use_container_width=True):
             st.session_state["df_lista_insumos"] = pd.DataFrame(columns=df_ins.columns)
             st.rerun()
 
+    st.divider()
     if not df_ins.empty:
         df_show = df_ins.copy()
         df_show["Valor Unitário (R$)"] = df_show["valor"] / df_show["qt"]
@@ -696,9 +829,13 @@ def render_taxas():
         st.session_state["df_lista_taxas"] = pd.DataFrame({"Taxa": ["Débito"], "Porcentagem (%)": [0.80]})
 
     st.title("Impostos e Taxas")
+    
+    st.subheader("⚙️ Gerenciar Taxas")
+    tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
     df_taxas = st.session_state["df_lista_taxas"]
+    opcoes_taxas = df_taxas["Taxa"].tolist()
 
-    with st.expander("➕ Adicionar Taxa", expanded=True):
+    with tab_add:
         with st.form("form_add_taxa", clear_on_submit=True):
             c1, c2, c3 = st.columns([4, 2, 2])
             n_taxa = c1.text_input("Nome da Taxa (Ex: Crédito 2x)")
@@ -709,19 +846,29 @@ def render_taxas():
                     st.session_state["df_lista_taxas"] = pd.concat([df_taxas, novo_df], ignore_index=True)
                     st.rerun()
 
-    c_del, c_limpar = st.columns([3, 1])
-    with c_del:
-        with st.form("rm_taxa"):
-            taxa_remover = st.selectbox("Remover Taxa:", options=df_taxas["Taxa"].tolist())
-            if st.form_submit_button("🗑️ Remover"):
-                st.session_state["df_lista_taxas"] = df_taxas[df_taxas["Taxa"] != taxa_remover]
-                st.rerun()
-    with c_limpar:
+    with tab_ren:
+        c1, c2, c3 = st.columns([2, 2, 1])
+        taxa_renomear = c1.selectbox("Taxa atual:", options=opcoes_taxas, key="sel_ren_taxa")
+        novo_nome_taxa = c2.text_input("Mudar para:", value=taxa_renomear if opcoes_taxas else "", key="in_ren_taxa")
         st.write("")
-        if st.button("⚠️ Excluir TODAS", type="primary", use_container_width=True):
+        if c3.button("Salvar Nome", use_container_width=True):
+            if novo_nome_taxa and novo_nome_taxa != taxa_renomear:
+                st.session_state["df_lista_taxas"].loc[st.session_state["df_lista_taxas"]["Taxa"] == taxa_renomear, "Taxa"] = novo_nome_taxa
+                st.rerun()
+
+    with tab_del:
+        c1, c2, c3 = st.columns([2, 1, 1])
+        taxa_remover = c1.selectbox("Remover Taxa:", options=opcoes_taxas, key="sel_rem_taxa")
+        st.write("")
+        if c2.button("🗑️ Remover", use_container_width=True):
+            st.session_state["df_lista_taxas"] = df_taxas[df_taxas["Taxa"] != taxa_remover]
+            st.rerun()
+        st.write("")
+        if c3.button("⚠️ Excluir TODAS", type="primary", use_container_width=True):
             st.session_state["df_lista_taxas"] = pd.DataFrame(columns=df_taxas.columns)
             st.rerun()
 
+    st.divider()
     if not df_taxas.empty:
         st.dataframe(df_taxas.style.format({"Porcentagem (%)": "{:.2f}%"}), use_container_width=True, hide_index=True)
 

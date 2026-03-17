@@ -35,3 +35,18 @@
 
 # Solução 
 * A solução profissional e elegante para isso é criar um sistema de Salvar/Carregar (Save/Load): O usuário preenche tudo. Clica em um botão "Baixar Configuração" (gera um arquivinho .json leve com os valores dele). Quando ele voltar amanhã e der F5, basta clicar em "Carregar Configuração", enviar esse arquivinho, e o Streamlit preenche todos os campos magicamente com os valores salvos.
+
+ # Ajustes no Design
+ * Deixar nítido das cores (Deixar o fundo dos campos 100% branco.
+ Adicionar uma borda cinza escura bem definida.)
+
+ por enquanto melhor código
+ teste2.py
+
+ Implementações:
+ Despesas Pessoal incluindo PJ/Terceirizado
+ Login e senha pra cada cliente gerando cada arquivo para cada cliente
+ Calculadora e salário?
+
+ 0 5 vai ser BC
+ 
