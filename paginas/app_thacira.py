@@ -2,7 +2,12 @@ import streamlit as st
 import pandas as pd
 import json
 import plotly.express as px
-import os
+
+# Fallback caso o arquivo banco_servicos não esteja no mesmo diretório na hora do teste
+try:
+    from banco_servicos import obter_servicos_cadastrados
+except ImportError:
+    def obter_servicos_cadastrados(): return {}
 
 # ==========================================
 # CONFIGURAÇÕES GERAIS E ESTILOS
@@ -10,137 +15,167 @@ import os
 COR_CABECALHO = "#7030A0"
 COR_FUNDO_CLARO = "#E6E0EC"
 COR_TEXTO_BRANCO = "#FFFFFF"
-ARQUIVO_BANCO = "banco_local_clinica.json"
-
-# ==========================================
-# FUNÇÕES DE PERSISTÊNCIA LOCAL (SALVAR/CARREGAR)
-# ==========================================
-def salvar_banco_local():
-    """Salva o estado atual do app em um arquivo JSON local."""
-    dados_para_salvar = {
-        "db_servicos": st.session_state.get("db_servicos", {}),
-        "df_lista_equipamentos": st.session_state.get("df_lista_equipamentos", pd.DataFrame()).to_dict(orient="records"),
-        "df_lista_insumos": st.session_state.get("df_lista_insumos", pd.DataFrame()).to_dict(orient="records"),
-        "df_lista_taxas": st.session_state.get("df_lista_taxas", pd.DataFrame()).to_dict(orient="records"),
-        "dias_uteis_eq": st.session_state.get("dias_uteis_eq", 22.0)
-    }
-    
-    if "df_custos_categorias" in st.session_state:
-        dados_para_salvar["df_custos_categorias"] = {
-            k: v.to_dict(orient="records") for k, v in st.session_state["df_custos_categorias"].items()
-        }
-        
-    with open(ARQUIVO_BANCO, "w", encoding="utf-8") as f:
-        json.dump(dados_para_salvar, f, indent=4, ensure_ascii=False)
-
-def carregar_banco_local():
-    """Lê o arquivo JSON local se ele existir."""
-    if os.path.exists(ARQUIVO_BANCO):
-        try:
-            with open(ARQUIVO_BANCO, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return None
-    return None
 
 # ==========================================
 # INICIALIZAÇÃO DE MEMÓRIA GLOBAL SEGURA
 # ==========================================
-dados_salvos = carregar_banco_local() or {}
-
 if "db_servicos" not in st.session_state:
-    if "db_servicos" in dados_salvos:
-        st.session_state["db_servicos"] = dados_salvos["db_servicos"]
-    else:
-        lista_novos_servicos = [
-            ("Consulta Ginecologista", 800.00), ("Consulta BC Woman Ginecologia", 600.00),
-            ("Pacote com 2 Consultas Gineco", 1400.00), ("Pacote com 3 Consultas Gineco", 1800.00),
-            ("BC FAMILY GINECO 6 PARCELADO | 2 membros", 3000.00), ("BC FAMILY GINECO 6 A VISTA | 2 membros", 2900.00),
-            ("BC FAMILY GINECO 3 ADICIONAL PARCELADO", 1500.00), ("BC FAMILY GINECO 3 ADICIONAL A VISTA", 1500.00),
-            ("Consulta Nutricionista Gineco", 350.00), ("Implante Masculino (6 meses) Standard (Até 5 pellets)", 5000.00),
-            ("Implante Masculino (6 meses) Standard 6 pellets", 5500.00), ("Implante Masculino (6 meses) Standard 7 pellets", 6000.00),
-            ("Implante Masculino (6 meses) Standard 8 pellets", 6500.00), ("Implante Masculino (6 meses) Standard 9 pellets", 7000.00),
-            ("Implante Masculino (6 meses) Standard 10 pellets", 7500.00), ("Implante Feminino Silástico (1 ano) COM Gestrinona G3+ (ACIMA DE 3 GESTRINONAS)", 9200.00),
-            ("Implante Feminino Silástico (1 ano) COM Gestrinona G3+ A VISTA", 9000.00), ("Implante Feminino Silástico (1 ano) COM Gestrinona ATÉ G3", 8000.00),
-            ("Implante Feminino Silástico (1 ano) COM Gestrinona ATÉ G3 A VISTA", 7800.00), ("Implante Feminino | Silástico (1 ano) SEM Gestrinona", 5500.00),
-            ("Implante Feminino | Silástico (1 ano) SEM Gestrinona A VISTA", 5000.00), ("Implante Feminino com Gestrinona | Absorvivel (6 meses) EX: G80, E50, T80", 5000.00),
-            ("Implante Feminino com Gestrinona | Absorvivel (6 meses) A VISTA", 4100.00), ("Implante Feminino sem Gestrinona | Absorvivel (6 meses) EX: E50, T80", 3500.00),
-            ("Implante Feminino sem Gestrinona | Absorvivel (6 meses) A VISTA", 2750.00), ("Dose testosterona (absorvivel)", 600.00),
-            ("Implante NADH 100 mg (antioxidante / Fadiga)", 1000.00), ("Implante NADH 200 mg (antioxidante / Fadiga)", 1200.00),
-            ("Implante GINO PLUS (testo + Nadh)", 3000.00), ("Implante GINO PLUS (testo + Nadh) A VISTA", 2800.00),
-            ("Inserção DIU Procedimento", 1800.00), ("Inserção DIU Myrena / Kyleena", 3500.00), ("Inserção Diu cobre / prata", 2500.00),
-            ("Sessão Laser Intimo", 6000.00), ("Pacote com 3 Sessões Laser Íntimo", 5400.00), ("Ninfoplastia", 10000.00),
-            ("Colposcopia", 120.00), ("Vulvoscopia", 120.00), ("Biopsia", 350.00), ("Vaginoscopia", 120.00),
-            ("BIÓPSIA DE VULVA / VAGINA / COLO / ENDOMETRIO", 350.00), ("PROCEDIMENTO DIAGNOSTICO EM CITOPATOLOGIA CÉRVICO-VAGINAL ONCÓTICO", 140.00),
-            ("BACTERIOSCOPIA (GRAM, ZIEHL, ALBERT ETC.), POR LÂMINA", 30.00), ("EXAME BACTERIOSCÓPICO DE SECREÇÃO VAGINAL", 70.00),
-            ("HPV (vírus do papiloma humano) + subtipagem quando necessário PCR - pesquisa", 1280.00), ("CHLAMYDIA TRACHOMATIS, DETECÇÃO DO DNA POR TÉCNICAS DE HIBRIDIZAÇÃO OU PCR", 930.00),
-            ("CAPTURA HÍBRIDA - PAINEL", 1770.00), ("GONOCOCO", 60.00)
-        ]
-        st.session_state["db_servicos"] = {
-            nome: {
-                "tempo_min": 60, "maquinas": [], "repasse_fixo": 0.0, "insumos": [],
-                "taxas": {"comissao": 0.0, "cartao": 0.0, "imposto": 12.0, "repasse_liq": 0.0, "lucro": 0.0},
-                "preco_escolhido": preco
-            } for nome, preco in lista_novos_servicos
-        }
+    lista_novos_servicos = [
+        ("Consulta Ginecologista", 800.00), ("Consulta BC Woman Ginecologia", 600.00),
+        ("Pacote com 2 Consultas Gineco", 1400.00), ("Pacote com 3 Consultas Gineco", 1800.00),
+        ("BC FAMILY GINECO 6 PARCELADO | 2 membros", 3000.00), ("BC FAMILY GINECO 6 A VISTA | 2 membros", 2900.00),
+        ("BC FAMILY GINECO 3 ADICIONAL PARCELADO", 1500.00), ("BC FAMILY GINECO 3 ADICIONAL A VISTA", 1500.00),
+        ("Consulta Nutricionista Gineco", 350.00), ("Implante Masculino (6 meses) Standard (Até 5 pellets)", 5000.00),
+        ("Implante Masculino (6 meses) Standard 6 pellets", 5500.00), ("Implante Masculino (6 meses) Standard 7 pellets", 6000.00),
+        ("Implante Masculino (6 meses) Standard 8 pellets", 6500.00), ("Implante Masculino (6 meses) Standard 9 pellets", 7000.00),
+        ("Implante Masculino (6 meses) Standard 10 pellets", 7500.00), ("Implante Feminino Silástico (1 ano) COM Gestrinona G3+ (ACIMA DE 3 GESTRINONAS)", 9200.00),
+        ("Implante Feminino Silástico (1 ano) COM Gestrinona G3+ A VISTA", 9000.00), ("Implante Feminino Silástico (1 ano) COM Gestrinona ATÉ G3", 8000.00),
+        ("Implante Feminino Silástico (1 ano) COM Gestrinona ATÉ G3 A VISTA", 7800.00), ("Implante Feminino | Silástico (1 ano) SEM Gestrinona", 5500.00),
+        ("Implante Feminino | Silástico (1 ano) SEM Gestrinona A VISTA", 5000.00), ("Implante Feminino com Gestrinona | Absorvivel (6 meses) EX: G80, E50, T80", 5000.00),
+        ("Implante Feminino com Gestrinona | Absorvivel (6 meses) A VISTA", 4100.00), ("Implante Feminino sem Gestrinona | Absorvivel (6 meses) EX: E50, T80", 3500.00),
+        ("Implante Feminino sem Gestrinona | Absorvivel (6 meses) A VISTA", 2750.00), ("Dose testosterona (absorvivel)", 600.00),
+        ("Implante NADH 100 mg (antioxidante / Fadiga)", 1000.00), ("Implante NADH 200 mg (antioxidante / Fadiga)", 1200.00),
+        ("Implante GINO PLUS (testo + Nadh)", 3000.00), ("Implante GINO PLUS (testo + Nadh) A VISTA", 2800.00),
+        ("Inserção DIU Procedimento", 1800.00), ("Inserção DIU Myrena / Kyleena", 3500.00), ("Inserção Diu cobre / prata", 2500.00),
+        ("Sessão Laser Intimo", 6000.00), ("Pacote com 3 Sessões Laser Íntimo", 5400.00), ("Ninfoplastia", 10000.00),
+        ("Colposcopia", 120.00), ("Vulvoscopia", 120.00), ("Biopsia", 350.00), ("Vaginoscopia", 120.00),
+        ("BIÓPSIA DE VULVA / VAGINA / COLO / ENDOMETRIO", 350.00), ("PROCEDIMENTO DIAGNOSTICO EM CITOPATOLOGIA CÉRVICO-VAGINAL ONCÓTICO", 140.00),
+        ("BACTERIOSCOPIA (GRAM, ZIEHL, ALBERT ETC.), POR LÂMINA", 30.00), ("EXAME BACTERIOSCÓPICO DE SECREÇÃO VAGINAL", 70.00),
+        ("HPV (vírus do papiloma humano) + subtipagem quando necessário PCR - pesquisa", 1280.00), ("CHLAMYDIA TRACHOMATIS, DETECÇÃO DO DNA POR TÉCNICAS DE HIBRIDIZAÇÃO OU PCR", 930.00),
+        ("CAPTURA HÍBRIDA - PAINEL", 1770.00), ("GONOCOCO", 60.00)
+    ]
+    st.session_state["db_servicos"] = {
+        nome: {
+            "tempo_min": 60, "maquinas": [], "repasse_fixo": 0.0, "insumos": [],
+            "taxas": {"comissao": 0.0, "cartao": 0.0, "imposto": 12.0, "repasse_liq": 0.0, "lucro": 0.0},
+            "preco_escolhido": preco
+        } for nome, preco in lista_novos_servicos
+    }
 
 if "df_lista_equipamentos" not in st.session_state:
-    if "df_lista_equipamentos" in dados_salvos:
-        st.session_state["df_lista_equipamentos"] = pd.DataFrame(dados_salvos["df_lista_equipamentos"])
-    else:
-        st.session_state["df_lista_equipamentos"] = pd.DataFrame({
-            "Nome do equipamento": ["USG PHILLIPS"], "Valor de aquisição (R$)": [100000.00], 
-            "Tempo de vida útil (anos)": [10.0], "Capacidade de Aplicações / dia (R$)": [800.00], 
-            "Aplicações (média diária)": [8.0], "Custo anual de manutenção (R$)": [1000.00]
-        })
+    st.session_state["df_lista_equipamentos"] = pd.DataFrame({
+        "Nome do equipamento": ["USG PHILLIPS"],
+        "Valor de aquisição (R$)": [100000.00], 
+        "Tempo de vida útil (anos)": [10.0],
+        "Capacidade de Aplicações / dia (R$)": [800.00], 
+        "Aplicações (média diária)": [8.0], 
+        "Custo anual de manutenção (R$)": [1000.00]
+    })
 
 if "df_lista_insumos" not in st.session_state:
-    if "df_lista_insumos" in dados_salvos:
-        st.session_state["df_lista_insumos"] = pd.DataFrame(dados_salvos["df_lista_insumos"])
-    else:
-        st.session_state["df_lista_insumos"] = pd.DataFrame({
-            "Material": [
-                "AGULHA", "SERINGA", "ALGODÃO ROLO HIDROFILO 500GR", "SORO FISIOLOGICO 250ML", "GESTRINONA 40 MG - IMPLANTE SILAST", 
-                "FIBROMIALGIA", "TESTOSTERONA 200 MG - IMPLANTE", "TESTOSTERONA 50 MG - IMPLANTE", "SORO FISOLOGICO 500 ML", 
-                "LIDOCAINA XYLESTESIN 2% COM VASO", "ÁGUA DESTILADA 10 ML", "KIT CRESCIMENTO DOS FIOS", "KIT HIDRATAÇÃO DOS FIOS", 
-                "KIT DERMATITE SEBORREICA,CASPA E PRURIDO NO COURO CABELUDO", "KIT ALOPECIA PADRAO FEMININO", "KIT ALOPECIA AREATA EM PLACA", 
-                "KIT ANTIAGING- ENVELHECIMENTO CAPILAR E CANICE", "KIT PÓS PRAIA", "KIT EFLÚVIO TELÓGENO PÓS PARTO", "KIT CRESCIMENTO DE BARBA", 
-                "KIT EFLÚVIOTELÓGENO", "KIT ALOPECIA ANDROGENÉTICA MASCULINA", "Minoxidil 0,5% (5mg/ml) 2ml", "DUTASTERIDA 0,1%", 
-                "bFGF; IGF; VEGF; Copper Peptídeo* 1,2% 2ml", "EPINEFRINA 1 MG/ML", "ATROPINA 0,25 MG/ML 1ML AMP", 
-                "FOSFATO DISSODICO DE DEXAMETASONA 4 MG/ML SOL INJ CX 100 AMP VD INC X 2,5 ML(EMB HOSP)", "CLOREXIDINA 2% ALMOT.100ML", 
-                "TESTE COVID-19", "HEPARINA", "LEVOFLOXACINO 5 MG/ML", "FENTANEST 0,05 MG/ML", "ADREN 1 MG/ML SOL INJ"
-            ],
-            "qt": [1.0] * 34,
-            "valor": [
-                0.56, 1.20, 24.33, 6.43, 404.67, 82.83, 255.82, 105.67, 0.81, 15.53, 0.58, 98.23, 52.80, 70.40, 
-                354.60, 186.23, 144.32, 70.40, 41.36, 125.67, 134.47, 241.86, 6.82, 11.02, 16.02, 2.39, 1.45, 
-                3.99, 15.04, 10.40, 9.98, 14.15, 66.00, 2.59
-            ]
-        })
+    lista_insumos_padrao = [
+        ("ADRENALINA", 1.0, 1.30),
+        ("ÁGUA OXIGENADA (mL)", 1.0, 0.04),
+        ("AGULHA 0,40x12", 1.0, 0.56),
+        ("AGULHA 13x0,3", 1.0, 0.10),
+        ("AGULHA 27 G 1/2", 1.0, 2.50),
+        ("AGULHA 30x0,8", 1.0, 0.05),
+        ("AGULHA 40x12", 1.0, 0.20),
+        ("AGULHA ASPIRAÇÃO", 1.0, 0.35),
+        ("ÁLCOOL (mL)", 1.0, 0.05),
+        ("ÁLCOOL À 70%", 1.0, 0.008),
+        ("ATIVO (mL)", 1.0, 16.00),
+        ("BRINDE", 1.0, 50.00),
+        ("CANETA BRANCA DE MARCAÇÃO", 1.0, 1.00),
+        ("CAPA PARA USG", 1.0, 3.00),
+        ("CARTUCHO DA PONTEIRA", 1.0, 200.00),
+        ("CLOREXIDINA ALCÓOLICA (mL)", 1.0, 0.02),
+        ("EQUIPO", 1.0, 1.00),
+        ("ESTERILIZAÇÃO (KIT DE ENDOLASER E MICROPORE)", 1.0, 15.00),
+        ("FIBRA ÓTICA", 1.0, 750.00),
+        ("GAZE", 1.0, 4.583),
+        ("GEL TRANSDUTOR (g)", 1.0, 0.01),
+        ("GLICOSE + LIDOCAÍNA (mL)", 1.0, 2.50),
+        ("INTRODUTOR", 1.0, 38.00),
+        ("JELCO", 1.0, 0.80),
+        ("KIT DE CREMES DA LINHA DRA. THACIRA", 3.0, 160.00),
+        ("KIT DESCARTÁVEL", 1.0, 95.00),
+        ("KOMPREX (cm)", 1.0, 0.335),
+        ("LANCHE", 1.0, 50.00),
+        ("LENÇOL DESCARTÁVEL ELÁSTICO", 1.0, 6.25),
+        ("LIDOCAÍNA GEL", 1.0, 5.40),
+        ("LIDOCAÍNA S/ VASO 20 mL", 1.0, 5.50),
+        ("LUVA (Par)", 1.0, 2.50),
+        ("LUVA ESTÉRIL (Par)", 1.0, 2.00),
+        ("LUVAS DE PROCEDIMENTOS", 1.0, 0.50),
+        ("MANTA", 1.0, 35.00),
+        ("MANUAL DO PACIENTE", 1.0, 20.00),
+        ("MÁSCARA PARA NITROSO", 1.0, 60.00),
+        ("MEIA DE COMPRESSÃO", 1.0, 85.00),
+        ("MICROPORE", 1.0, 9.00),
+        ("MICROPORE (cm)", 1.0, 0.045),
+        ("MOLELAST (cm)", 1.0, 0.036),
+        ("NITROSO", 1.0, 200.00),
+        ("ÓXIDO NITROSO", 1.0, 80.00),
+        ("OXIGÊNIO", 1.0, 20.00),
+        ("PAPEL PARA MACA (m)", 1.0, 0.50),
+        ("POLIDOCANOL (mL)", 1.0, 3.92),
+        ("POLIDOCANOL VÁRIAS CONCENTRAÇÕES (mL)", 1.0, 2.80),
+        ("POMADA REGENERADORA", 1.0, 58.00),
+        ("PRO-PÉ", 1.0, 1.00),
+        ("RIO HANDS (mL)", 1.0, 0.24),
+        ("SCALP", 1.0, 0.21),
+        ("SERINGA 10 mL", 1.0, 0.25),
+        ("SERINGA 3 mL", 1.0, 2.50),
+        ("SERINGA 5 mL", 1.0, 4.00),
+        ("SHORT DESCARTÁVEL", 1.0, 15.00),
+        ("SORO 1000 mL", 1.0, 9.30),
+        ("SORO 500 mL", 1.0, 5.00),
+        ("TAPPING", 1.0, 27.00),
+        ("THREE WAY", 1.0, 0.92),
+        ("ÁCIDO TRANEXÂMICO", 1.0, 5.00),
+        ("ALGODÃO ROLO HIDROFILO 500GR", 1.0, 24.33),
+        ("SORO FISIOLOGICO 250ML", 1.0, 6.43),
+        ("GESTRINONA 40 MG - IMPLANTE SILAST", 1.0, 404.67),
+        ("FIBROMIALGIA", 1.0, 82.83),
+        ("TESTOSTERONA 200 MG - IMPLANTE", 1.0, 255.82),
+        ("TESTOSTERONA 50 MG - IMPLANTE", 1.0, 105.67),
+        ("SORO FISOLOGICO 500 ML", 1.0, 0.81),
+        ("LIDOCAINA XYLESTESIN 2% COM VASO", 1.0, 15.53),
+        ("ÁGUA DESTILADA 10 ML", 1.0, 0.58),
+        ("KIT CRESCIMENTO DOS FIOS", 1.0, 98.23),
+        ("KIT HIDRATAÇÃO DOS FIOS", 1.0, 52.80),
+        ("KIT DERMATITE SEBORREICA,CASPA E PRURIDO NO COURO CABELUDO", 1.0, 70.40),
+        ("KIT ALOPECIA PADRAO FEMININO", 1.0, 354.60),
+        ("KIT ALOPECIA AREATA EM PLACA", 1.0, 186.23),
+        ("KIT ANTIAGING- ENVELHECIMENTO CAPILAR E CANICE", 1.0, 144.32),
+        ("KIT PÓS PRAIA", 1.0, 70.40),
+        ("KIT EFLÚVIO TELÓGENO PÓS PARTO", 1.0, 41.36),
+        ("KIT CRESCIMENTO DE BARBA", 1.0, 125.67),
+        ("KIT EFLÚVIOTELÓGENO", 1.0, 134.47),
+        ("KIT ALOPECIA ANDROGENÉTICA MASCULINA", 1.0, 241.86),
+        ("Minoxidil 0,5% (5mg/ml) 2ml", 1.0, 6.82),
+        ("DUTASTERIDA 0,1%", 1.0, 11.02),
+        ("bFGF; IGF; VEGF; Copper Peptídeo* 1,2% 2ml", 1.0, 16.02),
+        ("EPINEFRINA 1 MG/ML", 1.0, 2.39),
+        ("ATROPINA 0,25 MG/ML 1ML AMP", 1.0, 1.45),
+        ("FOSFATO DISSODICO DE DEXAMETASONA 4 MG/ML SOL INJ CX 100 AMP VD INC X 2,5 ML(EMB HOSP)", 1.0, 3.99),
+        ("CLOREXIDINA 2% ALMOT.100ML", 1.0, 15.04),
+        ("TESTE COVID-19", 1.0, 10.40),
+        ("HEPARINA", 1.0, 9.98),
+        ("LEVOFLOXACINO 5 MG/ML", 1.0, 14.15),
+        ("FENTANEST 0,05 MG/ML", 1.0, 66.00),
+        ("ADREN 1 MG/ML SOL INJ", 1.0, 2.59)
+    ]
+    st.session_state["df_lista_insumos"] = pd.DataFrame(lista_insumos_padrao, columns=["Material", "qt", "valor"])
 
 if "df_lista_taxas" not in st.session_state:
-    if "df_lista_taxas" in dados_salvos:
-        st.session_state["df_lista_taxas"] = pd.DataFrame(dados_salvos["df_lista_taxas"])
-    else:
-        st.session_state["df_lista_taxas"] = pd.DataFrame({"Taxa": ["Débito", "Crédito 1x", "Crédito 3x"], "Porcentagem (%)": [0.80, 1.20, 3.50]})
+    st.session_state["df_lista_taxas"] = pd.DataFrame({"Taxa": ["Débito", "Crédito 1x", "Crédito 3x"], "Porcentagem (%)": [0.80, 1.20, 3.50]})
 
 if "df_custos_categorias" not in st.session_state:
-    if "df_custos_categorias" in dados_salvos:
-        st.session_state["df_custos_categorias"] = {k: pd.DataFrame(v) for k, v in dados_salvos["df_custos_categorias"].items()}
-    else:
-        st.session_state["df_custos_categorias"] = {
-            "1. Despesa com pessoal": pd.DataFrame([{"ÍTEM": "1.1 Total da folha de pagamento", "MENSAL (R$)": 0.0}, {"ÍTEM": "1.2 Despesas com alimentação e transporte", "MENSAL (R$)": 0.0}]),
-            "2. Seguros": pd.DataFrame([{"ÍTEM": "2.1 Seguros do estabelecimento", "MENSAL (R$)": 0.0}]),
-            "3. Manutenção e conservação": pd.DataFrame([{"ÍTEM": "3.1 Elevadores", "MENSAL (R$)": 0.0}, {"ÍTEM": "3.4 Manutenção de equipamentos", "MENSAL (R$)": 0.0}]),
-            "4. Despesas estrutura e de consumo": pd.DataFrame([{"ÍTEM": "4.1 Aluguel", "MENSAL (R$)": 0.0}, {"ÍTEM": "4.3 Energia Elétrica", "MENSAL (R$)": 0.0}]),
-            "5. Despesas Administrativas e Licenças": pd.DataFrame([{"ÍTEM": "5.1 Contador", "MENSAL (R$)": 0.0}]),
-            "6. Despesas com TI": pd.DataFrame([{"ÍTEM": "6.1 Sistemas de gestão", "MENSAL (R$)": 0.0}]),
-            "7. Despesas bancárias": pd.DataFrame([{"ÍTEM": "7.1 Taxa administrativa de contas", "MENSAL (R$)": 0.0}, {"ÍTEM": "7.2 Máquinas de cartão", "MENSAL (R$)": 0.0}]),
-            "8. Marketing e vendas": pd.DataFrame([{"ÍTEM": "8.1 Agência", "MENSAL (R$)": 0.0}, {"ÍTEM": "8.4 Tráfego Pago e gestão", "MENSAL (R$)": 0.0}])
-        }
+    st.session_state["df_custos_categorias"] = {
+        "1. Despesa com pessoal": pd.DataFrame([{"ÍTEM": "1.1 Total da folha de pagamento", "MENSAL (R$)": 0.0}, {"ÍTEM": "1.2 Despesas com alimentação e transporte", "MENSAL (R$)": 0.0}]),
+        "2. Seguros": pd.DataFrame([{"ÍTEM": "2.1 Seguros do estabelecimento", "MENSAL (R$)": 0.0}]),
+        "3. Manutenção e conservação": pd.DataFrame([{"ÍTEM": "3.1 Elevadores", "MENSAL (R$)": 0.0}, {"ÍTEM": "3.4 Manutenção de equipamentos", "MENSAL (R$)": 0.0}]),
+        "4. Despesas estrutura e de consumo": pd.DataFrame([{"ÍTEM": "4.1 Aluguel", "MENSAL (R$)": 0.0}, {"ÍTEM": "4.3 Energia Elétrica", "MENSAL (R$)": 0.0}]),
+        "5. Despesas Administrativas e Licenças": pd.DataFrame([{"ÍTEM": "5.1 Contador", "MENSAL (R$)": 0.0}]),
+        "6. Despesas com TI": pd.DataFrame([{"ÍTEM": "6.1 Sistemas de gestão", "MENSAL (R$)": 0.0}]),
+        "7. Despesas bancárias": pd.DataFrame([{"ÍTEM": "7.1 Taxa administrativa de contas", "MENSAL (R$)": 0.0}, {"ÍTEM": "7.2 Máquinas de cartão", "MENSAL (R$)": 0.0}]),
+        "8. Marketing e vendas": pd.DataFrame([{"ÍTEM": "8.1 Agência", "MENSAL (R$)": 0.0}, {"ÍTEM": "8.4 Tráfego Pago e gestão", "MENSAL (R$)": 0.0}])
+    }
 
 if "dias_uteis_eq" not in st.session_state:
-    st.session_state["dias_uteis_eq"] = dados_salvos.get("dias_uteis_eq", 22.0)
+    st.session_state["dias_uteis_eq"] = 22.0
 
 def df_maquinas_padrao(): return pd.DataFrame(columns=["nome", "custo"])
 def df_insumos_padrao(): return pd.DataFrame(columns=["Material", "QT", "Preço (R$)"])
@@ -199,7 +234,7 @@ def carregar_servico_para_estado(nome_servico):
 inicializar_estado_ficha()
 
 # ==========================================
-# MENU LATERAL COM BOTÃO DE SALVAR
+# MENU LATERAL
 # ==========================================
 with st.sidebar:    
     modulo_selecionado = st.radio(
@@ -213,19 +248,53 @@ with st.sidebar:
         ]
     )
     st.divider()
-    
-    st.markdown("### 💾 Persistência de Dados")
-    if st.button("Salvar Progresso no Sistema", type="primary", use_container_width=True):
-        salvar_banco_local()
-        st.toast("Dados salvos com sucesso! Você pode dar F5 sem perder o progresso.", icon="✅")
-    st.caption("Clique aqui sempre que adicionar ou alterar algo importante para não perder ao recarregar a página.")
-    st.divider()
 
 # ==========================================
 # MÓDULO 1: FICHA TÉCNICA
 # ==========================================
 def render_ficha_tecnica():
     with st.sidebar:
+        st.header("💾 Salvar / Carregar Ficha")
+        arquivo_upload = st.file_uploader("Carregar backup (.json)", type=["json"], key="up_ficha")
+        if arquivo_upload is not None:
+            try:
+                dados_json = json.load(arquivo_upload)
+                for k, v in dados_json.items():
+                    if k in ["df_ficha_maquinas", "df_ficha_insumos"]:
+                        st.session_state[k] = pd.DataFrame(v)
+                    else:
+                        st.session_state[k] = v
+
+                st.session_state.setdefault("custo_aluguel", 0.0)
+                st.session_state.setdefault("indireto", "Sim")
+                st.session_state.setdefault("valor_hora", 48.14)
+                st.success("Ficha carregada com sucesso!")
+            except Exception:
+                st.error("Erro ao ler o arquivo.")
+        st.divider()
+
+        dados_para_salvar = {
+            "servico_atual": st.session_state.get("servico_atual", ""),
+            "tempo_min": st.session_state.get("tempo_min", 60),
+            "repasse_fixo": st.session_state.get("repasse_fixo", 0.0),
+            "df_ficha_maquinas": st.session_state.get("df_ficha_maquinas", df_maquinas_padrao()).to_dict(orient="records"),
+            "df_ficha_insumos": st.session_state.get("df_ficha_insumos", df_insumos_padrao()).to_dict(orient="records"),
+            "taxa_comissao": st.session_state.get("taxa_comissao", 0.0),
+            "taxa_cartao": st.session_state.get("taxa_cartao", 0.0),
+            "taxa_imposto": st.session_state.get("taxa_imposto", 12.0),
+            "preco_escolhido": st.session_state.get("preco_escolhido", 0.0),
+            "custo_aluguel": st.session_state.get("custo_aluguel", 0.0),
+            "indireto": st.session_state.get("indireto", "Sim"),
+            "valor_hora": st.session_state.get("valor_hora", 48.14)
+        }
+
+        st.download_button(
+            label="📥 Baixar Configuração",
+            data=json.dumps(dados_para_salvar, indent=4),
+            file_name=f"simulacao_{st.session_state.get('servico_atual', 'servico').replace(' ', '_')}.json",
+            mime="application/json"
+        )
+        st.divider()
         st.header("⚙️ Parâmetros Globais")
         st.selectbox("Com Custo Indireto?", ["Sim", "Não"], key="indireto")
         st.number_input("Valor da Hora Clínica (R$)", min_value=0.0, step=1.0, format="%.2f", key="valor_hora")
@@ -252,7 +321,6 @@ def render_ficha_tecnica():
                     "preco_escolhido": 0.0
                 }
                 carregar_servico_para_estado(novo_nome)
-                salvar_banco_local()
                 st.rerun()
             elif novo_nome in st.session_state["db_servicos"]:
                 st.warning("Serviço já existe.")
@@ -273,7 +341,6 @@ def render_ficha_tecnica():
                 st.session_state["db_servicos"] = novo_dict
                 if st.session_state.get("servico_atual") == servico_renomear:
                     st.session_state["servico_atual"] = novo_nome_serv
-                salvar_banco_local()
                 st.rerun()
 
     with tab_del:
@@ -287,13 +354,11 @@ def render_ficha_tecnica():
                     st.session_state["servico_atual"] = ""
                     if st.session_state["db_servicos"]:
                         carregar_servico_para_estado(list(st.session_state["db_servicos"].keys())[0])
-                salvar_banco_local()
                 st.rerun()
         st.write("")
         if c3.button("⚠️ Excluir TODOS", type="primary", use_container_width=True):
             st.session_state["db_servicos"] = {}
             st.session_state["servico_atual"] = ""
-            salvar_banco_local()
             st.rerun()
 
     lista_nomes_servicos = list(st.session_state["db_servicos"].keys())
@@ -324,8 +389,7 @@ def render_ficha_tecnica():
             },
             "preco_escolhido": st.session_state["preco_escolhido"]
         }
-        salvar_banco_local()
-        st.success("Ficha técnica salva e atualizada no sistema!")
+        st.success("Salvo com sucesso no sistema atual!")
 
     st.divider()
     col_esq, col_dir = st.columns([2, 1])
@@ -529,6 +593,20 @@ def render_ficha_tecnica():
 # MÓDULO 2: CUSTOS FIXOS
 # ==========================================
 def render_custos_fixos():
+    with st.sidebar:
+        st.header("💾 Salvar / Carregar Custos Fixos")
+        arquivo_upload = st.file_uploader("Carregar backup (.json)", type=["json"], key="up_custos")
+        if arquivo_upload is not None:
+            try:
+                dados_salvos = json.load(arquivo_upload)
+                if "df_custos_categorias" in dados_salvos:
+                    st.session_state["df_custos_categorias"] = {k: pd.DataFrame(v) for k, v in dados_salvos["df_custos_categorias"].items()}
+                st.success("Dados carregados!")
+            except Exception: st.error("Erro ao ler o arquivo.")
+        st.divider()
+        dados_salvar = {"df_custos_categorias": {k: v.to_dict(orient="records") for k, v in st.session_state["df_custos_categorias"].items()}}
+        st.download_button("📥 Baixar Cenário", data=json.dumps(dados_salvar, indent=4), file_name="custos_fixos.json", mime="application/json")
+
     def renderizar_categoria_dinamica(titulo, chave):
         with st.expander(titulo, expanded=False):
             df_atual = st.session_state["df_custos_categorias"][titulo]
@@ -713,6 +791,18 @@ def render_custos_fixos():
 # MÓDULO 3: EQUIPAMENTOS
 # ==========================================
 def render_equipamentos():
+    with st.sidebar:
+        st.header("💾 Salvar / Carregar Equipamentos")
+        arquivo_upload = st.file_uploader("Carregar backup (.json)", type=["json"], key="up_eq")
+        if arquivo_upload is not None:
+            try:
+                st.session_state["df_lista_equipamentos"] = pd.DataFrame(json.load(arquivo_upload)["df_lista_equipamentos"])
+                st.success("Dados carregados!")
+            except Exception: st.error("Erro ao ler o arquivo.")
+        st.divider()
+        dados_salvar = {"df_lista_equipamentos": st.session_state["df_lista_equipamentos"].to_dict(orient="records")}
+        st.download_button("📥 Baixar Cenário", data=json.dumps(dados_salvar, indent=4), file_name="equipamentos.json", mime="application/json")
+
     st.title("Registro de Equipamentos")
     st.subheader("⚙️ Gerenciar Equipamentos")
     
@@ -733,9 +823,12 @@ def render_equipamentos():
             if st.form_submit_button("Adicionar à Lista"):
                 if n_nome:
                     novo_df = pd.DataFrame([{
-                        "Nome do equipamento": n_nome, "Valor de aquisição (R$)": float(n_valor),
-                        "Tempo de vida útil (anos)": float(n_vida), "Capacidade de Aplicações / dia (R$)": float(n_cap),
-                        "Aplicações (média diária)": float(n_apps), "Custo anual de manutenção (R$)": float(n_manut)
+                        "Nome do equipamento": n_nome, 
+                        "Valor de aquisição (R$)": float(n_valor),
+                        "Tempo de vida útil (anos)": float(n_vida), 
+                        "Capacidade de Aplicações / dia (R$)": float(n_cap),
+                        "Aplicações (média diária)": float(n_apps), 
+                        "Custo anual de manutenção (R$)": float(n_manut)
                     }])
                     st.session_state["df_lista_equipamentos"] = pd.concat([df_eq, novo_df], ignore_index=True)
                     st.rerun()
@@ -778,9 +871,12 @@ def render_equipamentos():
         df_calc["Custo Seção"] = df_calc.apply(lambda row: row["Depreciação Mensal"] / (row.get("Aplicações (média diária)", 1) * dias_uteis) if row.get("Aplicações (média diária)", 0) > 0 else 0, axis=1)
         
         formato_tabela = {
-            "Valor de aquisição (R$)": "R$ {:,.2f}", "Capacidade de Aplicações / dia (R$)": "R$ {:,.2f}",
-            "Custo anual de manutenção (R$)": "R$ {:,.2f}", "Montante Investido": "R$ {:,.2f}",
-            "Depreciação Mensal": "R$ {:,.2f}", "Custo Seção": "R$ {:,.2f}"
+            "Valor de aquisição (R$)": "R$ {:,.2f}",
+            "Capacidade de Aplicações / dia (R$)": "R$ {:,.2f}",
+            "Custo anual de manutenção (R$)": "R$ {:,.2f}",
+            "Montante Investido": "R$ {:,.2f}",
+            "Depreciação Mensal": "R$ {:,.2f}",
+            "Custo Seção": "R$ {:,.2f}"
         }
         st.dataframe(df_calc.style.format(formato_tabela, precision=2), use_container_width=True, hide_index=True)
 
@@ -795,6 +891,18 @@ def render_equipamentos():
 # MÓDULO 4: INSUMOS
 # ==========================================
 def render_insumos():
+    with st.sidebar:
+        st.header("💾 Salvar / Carregar Insumos")
+        arquivo_upload = st.file_uploader("Carregar backup (.json)", type=["json"], key="up_ins")
+        if arquivo_upload is not None:
+            try:
+                st.session_state["df_lista_insumos"] = pd.DataFrame(json.load(arquivo_upload)["df_lista_insumos"])
+                st.success("Dados carregados!")
+            except Exception: st.error("Erro ao ler o arquivo.")
+        st.divider()
+        dados_salvar = {"df_lista_insumos": st.session_state["df_lista_insumos"].to_dict(orient="records")}
+        st.download_button("📥 Baixar Cenário", data=json.dumps(dados_salvar, indent=4), file_name="insumos.json", mime="application/json")
+
     st.title("Lista de Insumos e Materiais")
     st.subheader("⚙️ Gerenciar Insumos")
     
@@ -846,6 +954,18 @@ def render_insumos():
 # MÓDULO 5: TAXAS
 # ==========================================
 def render_taxas():
+    with st.sidebar:
+        st.header("💾 Salvar / Carregar Taxas")
+        arquivo_upload = st.file_uploader("Carregar backup (.json)", type=["json"], key="up_taxas")
+        if arquivo_upload is not None:
+            try:
+                st.session_state["df_lista_taxas"] = pd.DataFrame(json.load(arquivo_upload)["df_lista_taxas"])
+                st.success("Dados carregados!")
+            except Exception: st.error("Erro ao ler o arquivo.")
+        st.divider()
+        dados_salvar = {"df_lista_taxas": st.session_state["df_lista_taxas"].to_dict(orient="records")}
+        st.download_button("📥 Baixar Cenário", data=json.dumps(dados_salvar, indent=4), file_name="taxas.json", mime="application/json")
+
     st.title("Impostos e Taxas")
     st.subheader("⚙️ Gerenciar Taxas")
     
