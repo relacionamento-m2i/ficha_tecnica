@@ -1,3 +1,5 @@
+Data início = Março (Início)
+
 # Filtros Necessários
 
 * Usuário seleciona um serviço ou mais e aparece só o selecionado
@@ -33,20 +35,21 @@
  * % Lucro
 
 
-# Solução 
-* A solução profissional e elegante para isso é criar um sistema de Salvar/Carregar (Save/Load): O usuário preenche tudo. Clica em um botão "Baixar Configuração" (gera um arquivinho .json leve com os valores dele). Quando ele voltar amanhã e der F5, basta clicar em "Carregar Configuração", enviar esse arquivinho, e o Streamlit preenche todos os campos magicamente com os valores salvos.
-
  # Ajustes no Design
  * Deixar nítido das cores (Deixar o fundo dos campos 100% branco.
  Adicionar uma borda cinza escura bem definida.)
 
- por enquanto melhor código
- teste2.py
 
  Implementações:
  Despesas Pessoal incluindo PJ/Terceirizado
  Login e senha pra cada cliente gerando cada arquivo para cada cliente
  Calculadora e salário?
 
- 0 5 vai ser BC
  
+Ideia supa_base  (08/04/2026)
+comando pra rodar:
+python -m streamlit run app.py
+
+
+aba pra achar (Legacy anon, service_role API keys) é a que tem anon public
+aba pra achar (Data API)

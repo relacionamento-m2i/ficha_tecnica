@@ -23,8 +23,14 @@ st.markdown(f"""
 try:
     SENHAS = st.secrets["senhas"]
     ARQUIVOS = st.secrets["arquivos"]
-except Exception:
-    st.error("⚠️ Configuração de segurança ausente. Verifique o secrets.toml.")
+except FileNotFoundError:
+    st.error("⚠️ Arquivo secrets.toml não encontrado. Certifique-se de que ele está na pasta '.streamlit/'.")
+    st.stop()
+except KeyError as e:
+    st.error(f"⚠️ A seção {e} não foi encontrada dentro do seu secrets.toml.")
+    st.stop()
+except Exception as e:
+    st.error(f"⚠️ Erro ao ler as configurações de segurança: {e}")
     st.stop()
 
 if "usuario_logado" not in st.session_state:
@@ -53,6 +59,7 @@ if st.session_state["usuario_logado"] is None:
             btn_entrar = st.form_submit_button("ENTRAR", use_container_width=True)
             
             if btn_entrar:
+                # Verifica se o usuário existe e se a senha confere
                 if usuario_input in SENHAS and str(SENHAS[usuario_input]) == str(senha_input):
                     st.session_state["usuario_logado"] = usuario_input
                     st.rerun() 
@@ -67,19 +74,19 @@ usuario_atual = st.session_state["usuario_logado"]
 
 # Verifica se o arquivo configurado no toml existe nas configurações
 if usuario_atual not in ARQUIVOS:
-    st.error(f"Nenhum painel configurado para o usuário: {usuario_atual}")
+    st.error(f"⚠️ Nenhum painel configurado para o usuário: '{usuario_atual}' dentro de [arquivos] no secrets.toml.")
     st.stop()
 
 caminho_do_arquivo = ARQUIVOS[usuario_atual]
 
 # Botão de Logout fixo na lateral
 with st.sidebar:
-    st.markdown(f"👤 Logado como: **{usuario_atual.upper()}**")
+    st.markdown(f"👤 Logado como: **{usuario_atual}**")
     if st.button("🚪 Sair (Logout)", use_container_width=True):
         st.session_state["usuario_logado"] = None
         st.rerun()
 
 # Roteia para o arquivo do cliente e roda
-pagina_exclusiva = st.Page(caminho_do_arquivo, title=f"Painel - {usuario_atual.upper()}", icon="📊")
+pagina_exclusiva = st.Page(caminho_do_arquivo, title=f"Painel - {usuario_atual}", icon="📊")
 pg = st.navigation([pagina_exclusiva])
 pg.run()
