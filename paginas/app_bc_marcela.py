@@ -3,11 +3,65 @@ import pandas as pd
 import json
 import plotly.express as px
 
-# Fallback caso o arquivo banco_servicos não esteja no mesmo diretório na hora do teste
 try:
-    from banco_servicos import obter_servicos_cadastrados
+    from supabase import create_client, Client
 except ImportError:
-    def obter_servicos_cadastrados(): return {}
+    st.error("⚠️ A biblioteca 'supabase' não está instalada. Abra o terminal e digite: pip install supabase")
+
+# ==========================================
+# 1. IDENTIFICAÇÃO DO CLIENTE / ARQUIVO
+# ==========================================
+# Identificador único deste cliente para o Supabase
+ID_CLIENTE = "BC_Marcela" 
+
+# ==========================================
+# 2. CONEXÃO COM A NUVEM (SUPABASE)
+# ==========================================
+@st.cache_resource
+def iniciar_conexao():
+    try:
+        url = st.secrets["supabase"]["URL"]
+        key = st.secrets["supabase"]["KEY"]
+        return create_client(url, key)
+    except Exception as e:
+        return None
+
+supabase: Client = iniciar_conexao()
+
+# ==========================================
+# 3. FUNÇÕES MÁGICAS DE SINCRONIZAÇÃO
+# ==========================================
+def salvar_estado_nuvem():
+    if supabase:
+        dados = {
+            "db_servicos": st.session_state.get("db_servicos", {}),
+            "df_lista_equipamentos": st.session_state.get("df_lista_equipamentos", pd.DataFrame()).to_dict(orient="records"),
+            "df_lista_insumos": st.session_state.get("df_lista_insumos", pd.DataFrame()).to_dict(orient="records"),
+            "df_lista_taxas": st.session_state.get("df_lista_taxas", pd.DataFrame()).to_dict(orient="records"),
+            "df_custos_categorias": {k: v.to_dict(orient="records") for k, v in st.session_state.get("df_custos_categorias", {}).items()}
+        }
+        try:
+            supabase.table("app_state").upsert({"cliente_id": ID_CLIENTE, "state_data": dados}).execute()
+        except Exception as e:
+            st.error(f"Erro ao salvar na nuvem: {e}")
+
+def carregar_estado_nuvem():
+    if supabase:
+        try:
+            res = supabase.table("app_state").select("state_data").eq("cliente_id", ID_CLIENTE).execute()
+            if res.data:
+                dados = res.data[0]["state_data"]
+                st.session_state["db_servicos"] = dados.get("db_servicos", {})
+                st.session_state["df_lista_equipamentos"] = pd.DataFrame(dados.get("df_lista_equipamentos", []))
+                st.session_state["df_lista_insumos"] = pd.DataFrame(dados.get("df_lista_insumos", []))
+                st.session_state["df_lista_taxas"] = pd.DataFrame(dados.get("df_lista_taxas", []))
+
+                custos_raw = dados.get("df_custos_categorias", {})
+                st.session_state["df_custos_categorias"] = {k: pd.DataFrame(v) for k, v in custos_raw.items()}
+                return True
+        except Exception as e:
+            st.error(f"Erro ao carregar dados da nuvem: {e}")
+    return False
 
 # ==========================================
 # CONFIGURAÇÕES GERAIS E ESTILOS
@@ -16,10 +70,13 @@ COR_CABECALHO = "#7030A0"
 COR_FUNDO_CLARO = "#E6E0EC"
 COR_TEXTO_BRANCO = "#FFFFFF"
 
+def df_maquinas_padrao(): return pd.DataFrame(columns=["nome", "custo"])
+def df_insumos_padrao(): return pd.DataFrame(columns=["Material", "QT", "Preço (R$)"])
+
 # ==========================================
-# INICIALIZAÇÃO DE MEMÓRIA GLOBAL SEGURA
+# INICIALIZAÇÃO DE DADOS (CASO NUVEM VAZIA)
 # ==========================================
-if "db_servicos" not in st.session_state:
+def inicializar_padroes_caso_vazio():
     lista_novos_servicos = [
         ("Consulta Ginecologista", 800.00), ("Consulta BC Woman Ginecologia", 600.00),
         ("Pacote com 2 Consultas Gineco", 1400.00), ("Pacote com 3 Consultas Gineco", 1800.00),
@@ -52,7 +109,6 @@ if "db_servicos" not in st.session_state:
         } for nome, preco in lista_novos_servicos
     }
 
-if "df_lista_equipamentos" not in st.session_state:
     st.session_state["df_lista_equipamentos"] = pd.DataFrame({
         "Nome do equipamento": ["USG PHILLIPS"],
         "Valor de aquisição (R$)": [100000.00], 
@@ -62,9 +118,7 @@ if "df_lista_equipamentos" not in st.session_state:
         "Custo anual de manutenção (R$)": [1000.00]
     })
 
-if "df_lista_insumos" not in st.session_state:
     lista_insumos_padrao = [
-        # Lista antiga com valores
         ("ADRENALINA", 1.0, 1.30), ("ÁGUA OXIGENADA (mL)", 1.0, 0.04), ("AGULHA 0,40x12", 1.0, 0.56),
         ("AGULHA 13x0,3", 1.0, 0.10), ("AGULHA 27 G 1/2", 1.0, 2.50), ("AGULHA 30x0,8", 1.0, 0.05),
         ("AGULHA 40x12", 1.0, 0.20), ("AGULHA ASPIRAÇÃO", 1.0, 0.35), ("ÁLCOOL (mL)", 1.0, 0.05),
@@ -96,26 +150,13 @@ if "df_lista_insumos" not in st.session_state:
         ("ATROPINA 0,25 MG/ML 1ML AMP", 1.0, 1.45), ("FOSFATO DISSODICO DE DEXAMETASONA 4 MG/ML SOL INJ CX 100 AMP VD INC X 2,5 ML(EMB HOSP)", 1.0, 3.99),
         ("CLOREXIDINA 2% ALMOT.100ML", 1.0, 15.04), ("TESTE COVID-19", 1.0, 10.40), ("HEPARINA", 1.0, 9.98),
         ("LEVOFLOXACINO 5 MG/ML", 1.0, 14.15), ("FENTANEST 0,05 MG/ML", 1.0, 66.00), ("ADREN 1 MG/ML SOL INJ", 1.0, 2.59),
-        
-        # Novos materiais adicionados com valor 0.0
-        ("Trocater masculino", 1.0, 0.0), 
-        ("Trocater feminino", 1.0, 0.0), 
-        ("Campo operatório estéril", 1.0, 0.0),
-        ("Lâmina de bisturir nº 11", 1.0, 0.0), 
-        ("seringa de 20 ml", 1.0, 0.0), 
-        ("Anestesia sistesin com vaso - mL", 1.0, 0.0),
-        ("Anestesia sistesin sem vaso - mL", 1.0, 0.0), 
-        ("Agulha Rosa - 40x1,20 mm", 1.0, 0.0), 
-        ("Agulha Amarela - 13x0,00 mm", 1.0, 0.0),
-        ("Agulha Preta - 30x0,70 mm", 1.0, 0.0), 
-        ("Adesivo impermeável", 1.0, 0.0), 
-        ("Gaze - pacote", 1.0, 0.0),
-        ("Implante Masculino Standard (Até 5 pellets)", 1.0, 0.0), 
-        ("Implante Masculino Standard 6 pellets", 1.0, 0.0), 
-        ("Implante Masculino Standard 7 pellets", 1.0, 0.0), 
-        ("Implante Masculino Standard 8 pellets", 1.0, 0.0), 
-        ("Implante Masculino Standard 9 pellets", 1.0, 0.0), 
-        ("Implante Masculino Standard 10 pellets", 1.0, 0.0), 
+        ("Trocater masculino", 1.0, 0.0), ("Trocater feminino", 1.0, 0.0), ("Campo operatório estéril", 1.0, 0.0),
+        ("Lâmina de bisturir nº 11", 1.0, 0.0), ("seringa de 20 ml", 1.0, 0.0), ("Anestesia sistesin com vaso - mL", 1.0, 0.0),
+        ("Anestesia sistesin sem vaso - mL", 1.0, 0.0), ("Agulha Rosa - 40x1,20 mm", 1.0, 0.0), ("Agulha Amarela - 13x0,00 mm", 1.0, 0.0),
+        ("Agulha Preta - 30x0,70 mm", 1.0, 0.0), ("Adesivo impermeável", 1.0, 0.0), ("Gaze - pacote", 1.0, 0.0),
+        ("Implante Masculino Standard (Até 5 pellets)", 1.0, 0.0), ("Implante Masculino Standard 6 pellets", 1.0, 0.0), 
+        ("Implante Masculino Standard 7 pellets", 1.0, 0.0), ("Implante Masculino Standard 8 pellets", 1.0, 0.0), 
+        ("Implante Masculino Standard 9 pellets", 1.0, 0.0), ("Implante Masculino Standard 10 pellets", 1.0, 0.0), 
         ("Implante Feminino Silástico com Gestrinona G3 + (ACIMA DE 3 GESTRINONAS)", 1.0, 0.0), 
         ("Implante Feminino Silástico com Gestrinona (ATÉ 3 GESTRINONAS)", 1.0, 0.0), 
         ("Implante Feminino | Silástico sem Gestrinona", 1.0, 0.0), 
@@ -127,29 +168,17 @@ if "df_lista_insumos" not in st.session_state:
         ("Implante NADH 100 mg(antioxidante / Fadiga)", 1.0, 0.0), 
         ("Implante NADH 200 mg(antioxidante / Fadiga)", 1.0, 0.0), 
         ("Implante GINO PLUS (testo + Nadh).", 1.0, 0.0), 
-        ("Bandeja de Diu", 1.0, 0.0), 
-        ("Espéculo Vaginal", 1.0, 0.0), 
-        ("Material de ultrasson", 1.0, 0.0), 
-        ("Diu - dispositivo", 1.0, 0.0), 
-        ("DIU Myrena / Kyleena", 1.0, 0.0), 
-        ("Inserção Diu cobre / prata", 1.0, 0.0), 
-        ("Tesoura Kerron", 1.0, 0.0), 
-        ("Pote coletor", 1.0, 0.0), 
-        ("Algodão", 1.0, 0.0), 
-        ("Escova Endocervical", 1.0, 0.0), 
-        ("Swab de algodão", 1.0, 0.0), 
-        ("Luvas de procedimento", 1.0, 0.0), 
-        ("Lâmina de microscopia", 1.0, 0.0), 
-        ("Porta-lâminas", 1.0, 0.0), 
-        ("Espátula de Ayre", 1.0, 0.0), 
+        ("Bandeja de Diu", 1.0, 0.0), ("Espéculo Vaginal", 1.0, 0.0), ("Material de ultrasson", 1.0, 0.0), 
+        ("Diu - dispositivo", 1.0, 0.0), ("DIU Myrena / Kyleena", 1.0, 0.0), ("Inserção Diu cobre / prata", 1.0, 0.0), 
+        ("Tesoura Kerron", 1.0, 0.0), ("Pote coletor", 1.0, 0.0), ("Algodão", 1.0, 0.0), 
+        ("Escova Endocervical", 1.0, 0.0), ("Swab de algodão", 1.0, 0.0), ("Luvas de procedimento", 1.0, 0.0), 
+        ("Lâmina de microscopia", 1.0, 0.0), ("Porta-lâminas", 1.0, 0.0), ("Espátula de Ayre", 1.0, 0.0), 
         ("Lâmina de vidro com extremidade fosca", 1.0, 0.0)
     ]
     st.session_state["df_lista_insumos"] = pd.DataFrame(lista_insumos_padrao, columns=["Material", "qt", "valor"])
 
-if "df_lista_taxas" not in st.session_state:
     st.session_state["df_lista_taxas"] = pd.DataFrame({"Taxa": ["Débito", "Crédito 1x", "Crédito 3x"], "Porcentagem (%)": [0.80, 1.20, 3.50]})
 
-if "df_custos_categorias" not in st.session_state:
     st.session_state["df_custos_categorias"] = {
         "1. Despesa com pessoal": pd.DataFrame([{"ÍTEM": "1.1 Total da folha de pagamento", "MENSAL (R$)": 0.0}, {"ÍTEM": "1.2 Despesas com alimentação e transporte", "MENSAL (R$)": 0.0}]),
         "2. Seguros": pd.DataFrame([{"ÍTEM": "2.1 Seguros do estabelecimento", "MENSAL (R$)": 0.0}]),
@@ -160,15 +189,19 @@ if "df_custos_categorias" not in st.session_state:
         "7. Despesas bancárias": pd.DataFrame([{"ÍTEM": "7.1 Taxa administrativa de contas", "MENSAL (R$)": 0.0}, {"ÍTEM": "7.2 Máquinas de cartão", "MENSAL (R$)": 0.0}]),
         "8. Marketing e vendas": pd.DataFrame([{"ÍTEM": "8.1 Agência", "MENSAL (R$)": 0.0}, {"ÍTEM": "8.4 Tráfego Pago e gestão", "MENSAL (R$)": 0.0}])
     }
+    salvar_estado_nuvem()
+
+if "dados_carregados" not in st.session_state:
+    carregou_nuvem = carregar_estado_nuvem()
+    if not carregou_nuvem:
+        inicializar_padroes_caso_vazio()
+    st.session_state["dados_carregados"] = True
 
 if "dias_uteis_eq" not in st.session_state:
     st.session_state["dias_uteis_eq"] = 22.0
 
-def df_maquinas_padrao(): return pd.DataFrame(columns=["nome", "custo"])
-def df_insumos_padrao(): return pd.DataFrame(columns=["Material", "QT", "Preço (R$)"])
-
 def inicializar_estado_ficha():
-    lista_nomes_servicos = list(st.session_state["db_servicos"].keys())
+    lista_nomes_servicos = list(st.session_state.get("db_servicos", {}).keys())
     if not lista_nomes_servicos:
         st.session_state.setdefault("servico_atual", "")
         st.session_state.setdefault("tempo_min", 60)
@@ -235,6 +268,11 @@ with st.sidebar:
         ]
     )
     st.divider()
+    if supabase:
+        st.success(f"☁️ Nuvem Ativa (Cliente: {ID_CLIENTE})")
+    else:
+        st.warning("⚠️ Rodando Offline")
+    st.divider()
 
 # ==========================================
 # MÓDULO 1: FICHA TÉCNICA
@@ -242,7 +280,7 @@ with st.sidebar:
 def render_ficha_tecnica():
     with st.sidebar:
         st.header("💾 Salvar / Carregar Ficha")
-        arquivo_upload = st.file_uploader("Carregar backup (.json)", type=["json"], key="up_ficha")
+        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_ficha")
         if arquivo_upload is not None:
             try:
                 dados_json = json.load(arquivo_upload)
@@ -255,7 +293,8 @@ def render_ficha_tecnica():
                 st.session_state.setdefault("custo_aluguel", 0.0)
                 st.session_state.setdefault("indireto", "Sim")
                 st.session_state.setdefault("valor_hora", 48.14)
-                st.success("Ficha carregada com sucesso!")
+                salvar_estado_nuvem()
+                st.success("Ficha carregada e salva na nuvem com sucesso!")
             except Exception:
                 st.error("Erro ao ler o arquivo.")
         st.divider()
@@ -276,7 +315,7 @@ def render_ficha_tecnica():
         }
 
         st.download_button(
-            label="📥 Baixar Configuração",
+            label="📥 Baixar Backup Local",
             data=json.dumps(dados_para_salvar, indent=4),
             file_name=f"simulacao_{st.session_state.get('servico_atual', 'servico').replace(' ', '_')}.json",
             mime="application/json"
@@ -308,6 +347,7 @@ def render_ficha_tecnica():
                     "preco_escolhido": 0.0
                 }
                 carregar_servico_para_estado(novo_nome)
+                salvar_estado_nuvem()
                 st.rerun()
             elif novo_nome in st.session_state["db_servicos"]:
                 st.warning("Serviço já existe.")
@@ -328,6 +368,7 @@ def render_ficha_tecnica():
                 st.session_state["db_servicos"] = novo_dict
                 if st.session_state.get("servico_atual") == servico_renomear:
                     st.session_state["servico_atual"] = novo_nome_serv
+                salvar_estado_nuvem()
                 st.rerun()
 
     with tab_del:
@@ -341,11 +382,13 @@ def render_ficha_tecnica():
                     st.session_state["servico_atual"] = ""
                     if st.session_state["db_servicos"]:
                         carregar_servico_para_estado(list(st.session_state["db_servicos"].keys())[0])
+                salvar_estado_nuvem()
                 st.rerun()
         st.write("")
         if c3.button("⚠️ Excluir TODOS", type="primary", use_container_width=True):
             st.session_state["db_servicos"] = {}
             st.session_state["servico_atual"] = ""
+            salvar_estado_nuvem()
             st.rerun()
 
     lista_nomes_servicos = list(st.session_state["db_servicos"].keys())
@@ -364,7 +407,7 @@ def render_ficha_tecnica():
         label_visibility="collapsed"
     )
 
-    if st.button("💾 Salvar Alterações deste Serviço no Banco", type="primary"):
+    if st.button("💾 Salvar Alterações deste Serviço na Nuvem", type="primary"):
         st.session_state["db_servicos"][st.session_state["servico_atual"]] = {
             "tempo_min": st.session_state["tempo_min"],
             "maquinas": st.session_state["df_ficha_maquinas"].to_dict(orient="records"),
@@ -376,7 +419,8 @@ def render_ficha_tecnica():
             },
             "preco_escolhido": st.session_state["preco_escolhido"]
         }
-        st.success("Salvo com sucesso!")
+        salvar_estado_nuvem()
+        st.success("Sincronizado com o Supabase com sucesso!")
 
     st.divider()
     col_esq, col_dir = st.columns([2, 1])
@@ -417,6 +461,7 @@ def render_ficha_tecnica():
                     if n_nome:
                         novo_reg = pd.DataFrame([{"nome": n_nome, "custo": float(n_custo)}])
                         st.session_state["df_ficha_maquinas"] = pd.concat([df_maq, novo_reg], ignore_index=True)
+                        salvar_estado_nuvem()
                         st.rerun()
                         
         with tab_ren_m:
@@ -428,12 +473,13 @@ def render_ficha_tecnica():
                 novo_custo_maq = c2.number_input("Mudar custo para (R$):", value=float(custo_atual_maq), min_value=0.0, step=10.0, format="%.2f", key="in_ren_custo_maq_ficha")
                 
                 st.write("")
-                if c3.button("Salvar", key="btn_salvar_maq", use_container_width=True):
+                if c3.button("Atualizar", key="btn_salvar_maq", use_container_width=True):
                     if novo_nome_maq:
                         idx = df_maq.index[df_maq["nome"] == maq_renomear].tolist()[0]
                         df_maq.at[idx, "nome"] = novo_nome_maq
                         df_maq.at[idx, "custo"] = novo_custo_maq
                         st.session_state["df_ficha_maquinas"] = df_maq
+                        salvar_estado_nuvem()
                         st.rerun()
 
         with tab_del_m:
@@ -443,10 +489,12 @@ def render_ficha_tecnica():
                 st.write("")
                 if c2.button("🗑️ Remover", key="btn_rem_maq", use_container_width=True):
                     st.session_state["df_ficha_maquinas"] = df_maq[df_maq["nome"] != maq_remover]
+                    salvar_estado_nuvem()
                     st.rerun()
                 st.write("")
                 if c3.button("⚠️ Excluir TODAS", key="btn_rem_todas_maq", type="primary", use_container_width=True):
                     st.session_state["df_ficha_maquinas"] = df_maquinas_padrao()
+                    salvar_estado_nuvem()
                     st.rerun()
 
         custo_maquinas = pd.to_numeric(st.session_state["df_ficha_maquinas"]["custo"], errors="coerce").fillna(0.0).sum() if not st.session_state["df_ficha_maquinas"].empty else 0.0
@@ -487,6 +535,7 @@ def render_ficha_tecnica():
                     if n_mat:
                         novo_reg = pd.DataFrame([{"Material": n_mat, "QT": float(n_qt), "Preço (R$)": float(n_preco)}])
                         st.session_state["df_ficha_insumos"] = pd.concat([df_ins, novo_reg], ignore_index=True)
+                        salvar_estado_nuvem()
                         st.rerun()
 
         with tab_ren_i:
@@ -500,13 +549,14 @@ def render_ficha_tecnica():
                 novo_preco_ins = c3.number_input("Mudar Preço Un.:", value=float(row_atual["Preço (R$)"]), min_value=0.0, step=0.1, format="%.3f", key="in_ren_pr_ins")
                 
                 st.write("")
-                if c4.button("Salvar", key="btn_salvar_ins", use_container_width=True):
+                if c4.button("Atualizar", key="btn_salvar_ins", use_container_width=True):
                     if novo_nome_ins:
                         idx = df_ins.index[df_ins["Material"] == ins_renomear].tolist()[0]
                         df_ins.at[idx, "Material"] = novo_nome_ins
                         df_ins.at[idx, "QT"] = nova_qt_ins
                         df_ins.at[idx, "Preço (R$)"] = novo_preco_ins
                         st.session_state["df_ficha_insumos"] = df_ins
+                        salvar_estado_nuvem()
                         st.rerun()
 
         with tab_del_i:
@@ -516,10 +566,12 @@ def render_ficha_tecnica():
                 st.write("")
                 if c2.button("🗑️ Remover", key="btn_rem_ins", use_container_width=True):
                     st.session_state["df_ficha_insumos"] = df_ins[df_ins["Material"] != ins_remover]
+                    salvar_estado_nuvem()
                     st.rerun()
                 st.write("")
                 if c3.button("⚠️ Excluir TODOS", key="btn_rem_todos_ins", type="primary", use_container_width=True):
                     st.session_state["df_ficha_insumos"] = df_insumos_padrao()
+                    salvar_estado_nuvem()
                     st.rerun()
 
         if not st.session_state["df_ficha_insumos"].empty:
@@ -582,17 +634,18 @@ def render_ficha_tecnica():
 def render_custos_fixos():
     with st.sidebar:
         st.header("💾 Salvar / Carregar Custos Fixos")
-        arquivo_upload = st.file_uploader("Carregar backup (.json)", type=["json"], key="up_custos")
+        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_custos")
         if arquivo_upload is not None:
             try:
                 dados_salvos = json.load(arquivo_upload)
                 if "df_custos_categorias" in dados_salvos:
                     st.session_state["df_custos_categorias"] = {k: pd.DataFrame(v) for k, v in dados_salvos["df_custos_categorias"].items()}
-                st.success("Dados carregados!")
+                salvar_estado_nuvem()
+                st.success("Dados carregados e salvos na nuvem!")
             except Exception: st.error("Erro ao ler o arquivo.")
         st.divider()
         dados_salvar = {"df_custos_categorias": {k: v.to_dict(orient="records") for k, v in st.session_state["df_custos_categorias"].items()}}
-        st.download_button("📥 Baixar Cenário", data=json.dumps(dados_salvar, indent=4), file_name="custos_fixos.json", mime="application/json")
+        st.download_button("📥 Baixar Backup Local", data=json.dumps(dados_salvar, indent=4), file_name="custos_fixos.json", mime="application/json")
 
     def renderizar_categoria_dinamica(titulo, chave):
         with st.expander(titulo, expanded=False):
@@ -611,6 +664,7 @@ def render_custos_fixos():
                     if c3.button("🗑️", key=f"del_{chave}_{idx}"):
                         registros.pop(idx)
                         st.session_state["df_custos_categorias"][titulo] = pd.DataFrame(registros) if registros else pd.DataFrame(columns=["ÍTEM", "MENSAL (R$)"])
+                        salvar_estado_nuvem()
                         st.rerun()
                         
                 st.session_state["df_custos_categorias"][titulo] = pd.DataFrame(registros) if registros else pd.DataFrame(columns=["ÍTEM", "MENSAL (R$)"])
@@ -627,6 +681,7 @@ def render_custos_fixos():
                     if n_item:
                         registros.append({"ÍTEM": n_item, "MENSAL (R$)": float(n_valor)})
                         st.session_state["df_custos_categorias"][titulo] = pd.DataFrame(registros)
+                        salvar_estado_nuvem()
                         st.rerun()
 
             total = sum(float(r["MENSAL (R$)"]) for r in registros) if registros else 0.0
@@ -634,7 +689,6 @@ def render_custos_fixos():
             return total
 
     st.title("Gestão de Custos Fixos e Hora Clínica")
-
     st.subheader("⚙️ Gerenciar Categorias")
     
     tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
@@ -647,6 +701,7 @@ def render_custos_fixos():
         if c2.button("Criar Categoria", use_container_width=True):
             if nova_cat and nova_cat not in st.session_state["df_custos_categorias"]:
                 st.session_state["df_custos_categorias"][nova_cat] = pd.DataFrame(columns=["ÍTEM", "MENSAL (R$)"])
+                salvar_estado_nuvem()
                 st.rerun()
                 
     with tab_ren:
@@ -663,6 +718,7 @@ def render_custos_fixos():
                     else:
                         novo_dict[k] = v
                 st.session_state["df_custos_categorias"] = novo_dict
+                salvar_estado_nuvem()
                 st.rerun()
 
     with tab_del:
@@ -672,10 +728,12 @@ def render_custos_fixos():
         if c2.button("🗑️ Remover Selecionada", use_container_width=True):
             if cat_remover in st.session_state["df_custos_categorias"]:
                 del st.session_state["df_custos_categorias"][cat_remover]
+                salvar_estado_nuvem()
                 st.rerun()
         st.write("")
         if c3.button("⚠️ Excluir TODAS", type="primary", use_container_width=True):
             st.session_state["df_custos_categorias"] = {}
+            salvar_estado_nuvem()
             st.rerun()
 
     st.divider()
@@ -694,7 +752,6 @@ def render_custos_fixos():
 
     with col_dashboard:
         st.subheader("Cálculo da Hora Clínica")
-        
         despesa_anual = despesa_mensal_media * 12
         
         st.info(f"**Despesa Anual:** R$ {despesa_anual:,.2f}")
@@ -710,10 +767,8 @@ def render_custos_fixos():
 
         horas_semanais = horas_diarias * dias_semana
         horas_mensais = horas_semanais * 4.5
-        
         custo_hora_clinica = despesa_mensal_media / horas_mensais if horas_mensais > 0 else 0.0
         custo_dia_clinica = custo_hora_clinica * horas_diarias
-        
         custo_hora_atendimento = custo_hora_clinica / qtd_salas if qtd_salas > 0 else 0.0
         custo_dia_atendimento = custo_dia_clinica / qtd_salas if qtd_salas > 0 else 0.0
 
@@ -722,16 +777,6 @@ def render_custos_fixos():
         st.write(f"**Custo Hora Clínica:** R$ {custo_hora_clinica:,.2f}")
         st.write(f"**Custo Dia Clínica:** R$ {custo_dia_clinica:,.2f}")
         st.write(f"**Custo Hora Atendimento (por sala):** R$ {custo_hora_atendimento:,.2f}")
-        st.write(f"**Custo Dia Atendimento (por sala):** R$ {custo_dia_atendimento:,.2f}")
-
-        with st.expander("ℹ️ Entenda como os índices são calculados"):
-            st.markdown("""
-            * **Horas Mensais:** `(Horas Diárias x Dias na Semana) x 4,5 semanas`
-            * **Custo Hora Clínica:** `Despesa Mensal Média / Horas Mensais`
-            * **Custo Dia Clínica:** `Custo Hora Clínica x Horas Diárias`
-            * **Custo Hora Atendimento:** `Custo Hora Clínica / Qtd de Salas`
-            * **Custo Dia Atendimento:** `Custo Dia Clínica / Qtd de Salas`
-            """)
 
     st.divider()
     st.subheader("RESUMO GERAL")
@@ -771,8 +816,6 @@ def render_custos_fixos():
             )
             fig.update_layout(height=max(400, len(df_grafico) * 35), margin=dict(l=10, r=10, t=40, b=10), yaxis_title="", xaxis_title="Valor Mensal (R$)", legend_title="Categoria", plot_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("📊 Preencha valores maiores que zero nas despesas para visualizar o gráfico detalhado.")
 
 # ==========================================
 # MÓDULO 3: EQUIPAMENTOS
@@ -780,15 +823,16 @@ def render_custos_fixos():
 def render_equipamentos():
     with st.sidebar:
         st.header("💾 Salvar / Carregar Equipamentos")
-        arquivo_upload = st.file_uploader("Carregar backup (.json)", type=["json"], key="up_eq")
+        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_eq")
         if arquivo_upload is not None:
             try:
                 st.session_state["df_lista_equipamentos"] = pd.DataFrame(json.load(arquivo_upload)["df_lista_equipamentos"])
-                st.success("Dados carregados!")
+                salvar_estado_nuvem()
+                st.success("Dados carregados e salvos na nuvem!")
             except Exception: st.error("Erro ao ler o arquivo.")
         st.divider()
         dados_salvar = {"df_lista_equipamentos": st.session_state["df_lista_equipamentos"].to_dict(orient="records")}
-        st.download_button("📥 Baixar Cenário", data=json.dumps(dados_salvar, indent=4), file_name="equipamentos.json", mime="application/json")
+        st.download_button("📥 Baixar Backup Local", data=json.dumps(dados_salvar, indent=4), file_name="equipamentos.json", mime="application/json")
 
     st.title("Registro de Equipamentos")
     st.subheader("⚙️ Gerenciar Equipamentos")
@@ -818,6 +862,7 @@ def render_equipamentos():
                         "Custo anual de manutenção (R$)": float(n_manut)
                     }])
                     st.session_state["df_lista_equipamentos"] = pd.concat([df_eq, novo_df], ignore_index=True)
+                    salvar_estado_nuvem()
                     st.rerun()
 
     with tab_ren:
@@ -828,6 +873,7 @@ def render_equipamentos():
         if c3.button("Salvar Nome", use_container_width=True):
             if novo_nome_eq and novo_nome_eq != eq_renomear:
                 st.session_state["df_lista_equipamentos"].loc[st.session_state["df_lista_equipamentos"]["Nome do equipamento"] == eq_renomear, "Nome do equipamento"] = novo_nome_eq
+                salvar_estado_nuvem()
                 st.rerun()
 
     with tab_del:
@@ -836,10 +882,12 @@ def render_equipamentos():
         st.write("")
         if c2.button("🗑️ Remover Selecionado", use_container_width=True):
             st.session_state["df_lista_equipamentos"] = df_eq[df_eq["Nome do equipamento"] != eq_remover]
+            salvar_estado_nuvem()
             st.rerun()
         st.write("")
         if c3.button("⚠️ Excluir TODOS", type="primary", use_container_width=True):
             st.session_state["df_lista_equipamentos"] = pd.DataFrame(columns=df_eq.columns)
+            salvar_estado_nuvem()
             st.rerun()
 
     st.divider()
@@ -847,7 +895,6 @@ def render_equipamentos():
     st.session_state["dias_uteis_eq"] = dias_uteis
 
     df_calc = st.session_state["df_lista_equipamentos"].copy()
-    
     if "Capacidade aplicações/dia" in df_calc.columns:
         df_calc.rename(columns={"Capacidade aplicações/dia": "Capacidade de Aplicações / dia (R$)"}, inplace=True)
         st.session_state["df_lista_equipamentos"] = df_calc.copy()
@@ -858,21 +905,11 @@ def render_equipamentos():
         df_calc["Custo Seção"] = df_calc.apply(lambda row: row["Depreciação Mensal"] / (row.get("Aplicações (média diária)", 1) * dias_uteis) if row.get("Aplicações (média diária)", 0) > 0 else 0, axis=1)
         
         formato_tabela = {
-            "Valor de aquisição (R$)": "R$ {:,.2f}",
-            "Capacidade de Aplicações / dia (R$)": "R$ {:,.2f}",
-            "Custo anual de manutenção (R$)": "R$ {:,.2f}",
-            "Montante Investido": "R$ {:,.2f}",
-            "Depreciação Mensal": "R$ {:,.2f}",
-            "Custo Seção": "R$ {:,.2f}"
+            "Valor de aquisição (R$)": "R$ {:,.2f}", "Capacidade de Aplicações / dia (R$)": "R$ {:,.2f}",
+            "Custo anual de manutenção (R$)": "R$ {:,.2f}", "Montante Investido": "R$ {:,.2f}",
+            "Depreciação Mensal": "R$ {:,.2f}", "Custo Seção": "R$ {:,.2f}"
         }
         st.dataframe(df_calc.style.format(formato_tabela, precision=2), use_container_width=True, hide_index=True)
-
-        with st.expander("ℹ️ Entenda como os índices são calculados"):
-            st.markdown("""
-            * **Montante Investido:** `Valor de Aquisição + (Vida Útil em Anos x Manutenção Anual)`
-            * **Depreciação Mensal:** `Montante Investido / (Vida Útil em Anos x 12 meses)`
-            * **Custo por Seção / Aplicação:** `Depreciação Mensal / (Aplicações (média diária) x Dias Úteis no mês)`
-            """)
 
 # ==========================================
 # MÓDULO 4: INSUMOS
@@ -880,15 +917,16 @@ def render_equipamentos():
 def render_insumos():
     with st.sidebar:
         st.header("💾 Salvar / Carregar Insumos")
-        arquivo_upload = st.file_uploader("Carregar backup (.json)", type=["json"], key="up_ins")
+        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_ins")
         if arquivo_upload is not None:
             try:
                 st.session_state["df_lista_insumos"] = pd.DataFrame(json.load(arquivo_upload)["df_lista_insumos"])
-                st.success("Dados carregados!")
+                salvar_estado_nuvem()
+                st.success("Dados carregados e salvos na nuvem!")
             except Exception: st.error("Erro ao ler o arquivo.")
         st.divider()
         dados_salvar = {"df_lista_insumos": st.session_state["df_lista_insumos"].to_dict(orient="records")}
-        st.download_button("📥 Baixar Cenário", data=json.dumps(dados_salvar, indent=4), file_name="insumos.json", mime="application/json")
+        st.download_button("📥 Baixar Backup Local", data=json.dumps(dados_salvar, indent=4), file_name="insumos.json", mime="application/json")
 
     st.title("Lista de Insumos e Materiais")
     st.subheader("⚙️ Gerenciar Insumos")
@@ -907,6 +945,7 @@ def render_insumos():
                 if n_mat:
                     novo_df = pd.DataFrame([{"Material": n_mat, "qt": float(n_qt), "valor": float(n_val)}])
                     st.session_state["df_lista_insumos"] = pd.concat([df_ins, novo_df], ignore_index=True)
+                    salvar_estado_nuvem()
                     st.rerun()
 
     with tab_ren:
@@ -917,6 +956,7 @@ def render_insumos():
         if c3.button("Salvar Nome", use_container_width=True):
             if novo_nome_ins and novo_nome_ins != ins_renomear:
                 st.session_state["df_lista_insumos"].loc[st.session_state["df_lista_insumos"]["Material"] == ins_renomear, "Material"] = novo_nome_ins
+                salvar_estado_nuvem()
                 st.rerun()
 
     with tab_del:
@@ -925,10 +965,12 @@ def render_insumos():
         st.write("")
         if c2.button("🗑️ Remover Selecionado", use_container_width=True):
             st.session_state["df_lista_insumos"] = df_ins[df_ins["Material"] != ins_remover]
+            salvar_estado_nuvem()
             st.rerun()
         st.write("")
         if c3.button("⚠️ Excluir TODOS", type="primary", use_container_width=True):
             st.session_state["df_lista_insumos"] = pd.DataFrame(columns=df_ins.columns)
+            salvar_estado_nuvem()
             st.rerun()
 
     st.divider()
@@ -943,15 +985,16 @@ def render_insumos():
 def render_taxas():
     with st.sidebar:
         st.header("💾 Salvar / Carregar Taxas")
-        arquivo_upload = st.file_uploader("Carregar backup (.json)", type=["json"], key="up_taxas")
+        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_taxas")
         if arquivo_upload is not None:
             try:
                 st.session_state["df_lista_taxas"] = pd.DataFrame(json.load(arquivo_upload)["df_lista_taxas"])
-                st.success("Dados carregados!")
+                salvar_estado_nuvem()
+                st.success("Dados carregados e salvos na nuvem!")
             except Exception: st.error("Erro ao ler o arquivo.")
         st.divider()
         dados_salvar = {"df_lista_taxas": st.session_state["df_lista_taxas"].to_dict(orient="records")}
-        st.download_button("📥 Baixar Cenário", data=json.dumps(dados_salvar, indent=4), file_name="taxas.json", mime="application/json")
+        st.download_button("📥 Baixar Backup Local", data=json.dumps(dados_salvar, indent=4), file_name="taxas.json", mime="application/json")
 
     st.title("Impostos e Taxas")
     st.subheader("⚙️ Gerenciar Taxas")
@@ -969,6 +1012,7 @@ def render_taxas():
                 if n_taxa:
                     novo_df = pd.DataFrame([{"Taxa": n_taxa, "Porcentagem (%)": float(n_pct)}])
                     st.session_state["df_lista_taxas"] = pd.concat([df_taxas, novo_df], ignore_index=True)
+                    salvar_estado_nuvem()
                     st.rerun()
 
     with tab_ren:
@@ -979,6 +1023,7 @@ def render_taxas():
         if c3.button("Salvar Nome", use_container_width=True):
             if novo_nome_taxa and novo_nome_taxa != taxa_renomear:
                 st.session_state["df_lista_taxas"].loc[st.session_state["df_lista_taxas"]["Taxa"] == taxa_renomear, "Taxa"] = novo_nome_taxa
+                salvar_estado_nuvem()
                 st.rerun()
 
     with tab_del:
@@ -987,10 +1032,12 @@ def render_taxas():
         st.write("")
         if c2.button("🗑️ Remover", use_container_width=True):
             st.session_state["df_lista_taxas"] = df_taxas[df_taxas["Taxa"] != taxa_remover]
+            salvar_estado_nuvem()
             st.rerun()
         st.write("")
         if c3.button("⚠️ Excluir TODAS", type="primary", use_container_width=True):
             st.session_state["df_lista_taxas"] = pd.DataFrame(columns=df_taxas.columns)
+            salvar_estado_nuvem()
             st.rerun()
 
     st.divider()
