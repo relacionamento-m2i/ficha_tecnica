@@ -1,17 +1,17 @@
 import streamlit as st
 import pandas as pd
-import json
 import plotly.express as px
 
 try:
     from supabase import create_client, Client
 except ImportError:
-    st.error("⚠️ A biblioteca 'supabase' não está instalada. Abra o terminal e digite: pip install supabase")
+    st.error("⚠️ A biblioteca 'supabase' não está instalada no ambiente do Streamlit.")
+    st.info("Abra o terminal e digite: pipx inject streamlit supabase (ou pip install supabase)")
+    st.stop()
 
 # ==========================================
 # 1. IDENTIFICAÇÃO DO CLIENTE / ARQUIVO
 # ==========================================
-# Identificador único deste cliente para o Supabase
 ID_CLIENTE = "BC_Marcela" 
 
 # ==========================================
@@ -70,6 +70,25 @@ COR_CABECALHO = "#7030A0"
 COR_FUNDO_CLARO = "#E6E0EC"
 COR_TEXTO_BRANCO = "#FFFFFF"
 
+# CSS Injetado para Deixar os KPIs Profissionais
+st.markdown("""
+    <style>
+    div[data-testid="stMetric"] {
+        background-color: #FFFFFF;
+        border-left: 5px solid #7030A0;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border-top: 1px solid #f0f0f0;
+        border-right: 1px solid #f0f0f0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    div[data-testid="stMetric"] > div {
+        align-items: center;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 def df_maquinas_padrao(): return pd.DataFrame(columns=["nome", "custo"])
 def df_insumos_padrao(): return pd.DataFrame(columns=["Material", "QT", "Preço (R$)"])
 
@@ -78,28 +97,7 @@ def df_insumos_padrao(): return pd.DataFrame(columns=["Material", "QT", "Preço 
 # ==========================================
 def inicializar_padroes_caso_vazio():
     lista_novos_servicos = [
-        ("Consulta Ginecologista", 800.00), ("Consulta BC Woman Ginecologia", 600.00),
-        ("Pacote com 2 Consultas Gineco", 1400.00), ("Pacote com 3 Consultas Gineco", 1800.00),
-        ("BC FAMILY GINECO 6 PARCELADO | 2 membros", 3000.00), ("BC FAMILY GINECO 6 A VISTA | 2 membros", 2900.00),
-        ("BC FAMILY GINECO 3 ADICIONAL PARCELADO", 1500.00), ("BC FAMILY GINECO 3 ADICIONAL A VISTA", 1500.00),
-        ("Consulta Nutricionista Gineco", 350.00), ("Implante Masculino (6 meses) Standard (Até 5 pellets)", 5000.00),
-        ("Implante Masculino (6 meses) Standard 6 pellets", 5500.00), ("Implante Masculino (6 meses) Standard 7 pellets", 6000.00),
-        ("Implante Masculino (6 meses) Standard 8 pellets", 6500.00), ("Implante Masculino (6 meses) Standard 9 pellets", 7000.00),
-        ("Implante Masculino (6 meses) Standard 10 pellets", 7500.00), ("Implante Feminino Silástico (1 ano) COM Gestrinona G3+ (ACIMA DE 3 GESTRINONAS)", 9200.00),
-        ("Implante Feminino Silástico (1 ano) COM Gestrinona G3+ A VISTA", 9000.00), ("Implante Feminino Silástico (1 ano) COM Gestrinona ATÉ G3", 8000.00),
-        ("Implante Feminino Silástico (1 ano) COM Gestrinona ATÉ G3 A VISTA", 7800.00), ("Implante Feminino | Silástico (1 ano) SEM Gestrinona", 5500.00),
-        ("Implante Feminino | Silástico (1 ano) SEM Gestrinona A VISTA", 5000.00), ("Implante Feminino com Gestrinona | Absorvivel (6 meses) EX: G80, E50, T80", 5000.00),
-        ("Implante Feminino com Gestrinona | Absorvivel (6 meses) A VISTA", 4100.00), ("Implante Feminino sem Gestrinona | Absorvivel (6 meses) EX: E50, T80", 3500.00),
-        ("Implante Feminino sem Gestrinona | Absorvivel (6 meses) A VISTA", 2750.00), ("Dose testosterona (absorvivel)", 600.00),
-        ("Implante NADH 100 mg (antioxidante / Fadiga)", 1000.00), ("Implante NADH 200 mg (antioxidante / Fadiga)", 1200.00),
-        ("Implante GINO PLUS (testo + Nadh)", 3000.00), ("Implante GINO PLUS (testo + Nadh) A VISTA", 2800.00),
-        ("Inserção DIU Procedimento", 1800.00), ("Inserção DIU Myrena / Kyleena", 3500.00), ("Inserção Diu cobre / prata", 2500.00),
-        ("Sessão Laser Intimo", 6000.00), ("Pacote com 3 Sessões Laser Íntimo", 5400.00), ("Ninfoplastia", 10000.00),
-        ("Colposcopia", 120.00), ("Vulvoscopia", 120.00), ("Biopsia", 350.00), ("Vaginoscopia", 120.00),
-        ("BIÓPSIA DE VULVA / VAGINA / COLO / ENDOMETRIO", 350.00), ("PROCEDIMENTO DIAGNOSTICO EM CITOPATOLOGIA CÉRVICO-VAGINAL ONCÓTICO", 140.00),
-        ("BACTERIOSCOPIA (GRAM, ZIEHL, ALBERT ETC.), POR LÂMINA", 30.00), ("EXAME BACTERIOSCÓPICO DE SECREÇÃO VAGINAL", 70.00),
-        ("HPV (vírus do papiloma humano) + subtipagem quando necessário PCR - pesquisa", 1280.00), ("CHLAMYDIA TRACHOMATIS, DETECÇÃO DO DNA POR TÉCNICAS DE HIBRIDIZAÇÃO OU PCR", 930.00),
-        ("CAPTURA HÍBRIDA - PAINEL", 1770.00), ("GONOCOCO", 60.00)
+        ("Consulta Ginecologista", 800.00), ("Consulta Nutricionista", 350.00), ("Inserção DIU", 1800.00)
     ]
     st.session_state["db_servicos"] = {
         nome: {
@@ -110,84 +108,26 @@ def inicializar_padroes_caso_vazio():
     }
 
     st.session_state["df_lista_equipamentos"] = pd.DataFrame({
-        "Nome do equipamento": ["USG PHILLIPS"],
-        "Valor de aquisição (R$)": [100000.00], 
-        "Tempo de vida útil (anos)": [10.0],
-        "Capacidade de Aplicações / dia (R$)": [800.00], 
-        "Aplicações (média diária)": [8.0], 
-        "Custo anual de manutenção (R$)": [1000.00]
+        "Nome do equipamento": ["USG PHILLIPS"], "Valor de aquisição (R$)": [100000.00], 
+        "Tempo de vida útil (anos)": [10.0], "Capacidade de Aplicações / dia (R$)": [800.00], 
+        "Aplicações (média diária)": [8.0], "Custo anual de manutenção (R$)": [1000.00]
     })
 
-    lista_insumos_padrao = [
-        ("ADRENALINA", 1.0, 1.30), ("ÁGUA OXIGENADA (mL)", 1.0, 0.04), ("AGULHA 0,40x12", 1.0, 0.56),
-        ("AGULHA 13x0,3", 1.0, 0.10), ("AGULHA 27 G 1/2", 1.0, 2.50), ("AGULHA 30x0,8", 1.0, 0.05),
-        ("AGULHA 40x12", 1.0, 0.20), ("AGULHA ASPIRAÇÃO", 1.0, 0.35), ("ÁLCOOL (mL)", 1.0, 0.05),
-        ("ÁLCOOL À 70%", 1.0, 0.008), ("ATIVO (mL)", 1.0, 16.00), ("BRINDE", 1.0, 50.00),
-        ("CANETA BRANCA DE MARCAÇÃO", 1.0, 1.00), ("CAPA PARA USG", 1.0, 3.00), ("CARTUCHO DA PONTEIRA", 1.0, 200.00),
-        ("CLOREXIDINA ALCÓOLICA (mL)", 1.0, 0.02), ("EQUIPO", 1.0, 1.00), ("ESTERILIZAÇÃO (KIT DE ENDOLASER E MICROPORE)", 1.0, 15.00),
-        ("FIBRA ÓTICA", 1.0, 750.00), ("GAZE", 1.0, 4.583), ("GEL TRANSDUTOR (g)", 1.0, 0.01),
-        ("GLICOSE + LIDOCAÍNA (mL)", 1.0, 2.50), ("INTRODUTOR", 1.0, 38.00), ("JELCO", 1.0, 0.80),
-        ("KIT DE CREMES DA LINHA DRA. THACIRA", 3.0, 160.00), ("KIT DESCARTÁVEL", 1.0, 95.00), ("KOMPREX (cm)", 1.0, 0.335),
-        ("LANCHE", 1.0, 50.00), ("LENÇOL DESCARTÁVEL ELÁSTICO", 1.0, 6.25), ("LIDOCAÍNA GEL", 1.0, 5.40),
-        ("LIDOCAÍNA S/ VASO 20 mL", 1.0, 5.50), ("LUVA (Par)", 1.0, 2.50), ("LUVA ESTÉRIL (Par)", 1.0, 2.00),
-        ("LUVAS DE PROCEDIMENTOS", 1.0, 0.50), ("MANTA", 1.0, 35.00), ("MANUAL DO PACIENTE", 1.0, 20.00),
-        ("MÁSCARA PARA NITROSO", 1.0, 60.00), ("MEIA DE COMPRESSÃO", 1.0, 85.00), ("MICROPORE", 1.0, 9.00),
-        ("MICROPORE (cm)", 1.0, 0.045), ("MOLELAST (cm)", 1.0, 0.036), ("NITROSO", 1.0, 200.00),
-        ("ÓXIDO NITROSO", 1.0, 80.00), ("OXIGÊNIO", 1.0, 20.00), ("PAPEL PARA MACA (m)", 1.0, 0.50),
-        ("POLIDOCANOL (mL)", 1.0, 3.92), ("POLIDOCANOL VÁRIAS CONCENTRAÇÕES (mL)", 1.0, 2.80), ("POMADA REGENERADORA", 1.0, 58.00),
-        ("PRO-PÉ", 1.0, 1.00), ("RIO HANDS (mL)", 1.0, 0.24), ("SCALP", 1.0, 0.21),
-        ("SERINGA 10 mL", 1.0, 0.25), ("SERINGA 3 mL", 1.0, 2.50), ("SERINGA 5 mL", 1.0, 4.00),
-        ("SHORT DESCARTÁVEL", 1.0, 15.00), ("SORO 1000 mL", 1.0, 9.30), ("SORO 500 mL", 1.0, 5.00),
-        ("TAPPING", 1.0, 27.00), ("THREE WAY", 1.0, 0.92), ("ÁCIDO TRANEXÂMICO", 1.0, 5.00),
-        ("ALGODÃO ROLO HIDROFILO 500GR", 1.0, 24.33), ("SORO FISIOLOGICO 250ML", 1.0, 6.43), ("GESTRINONA 40 MG - IMPLANTE SILAST", 1.0, 404.67),
-        ("FIBROMIALGIA", 1.0, 82.83), ("TESTOSTERONA 200 MG - IMPLANTE", 1.0, 255.82), ("TESTOSTERONA 50 MG - IMPLANTE", 1.0, 105.67),
-        ("SORO FISOLOGICO 500 ML", 1.0, 0.81), ("LIDOCAINA XYLESTESIN 2% COM VASO", 1.0, 15.53), ("ÁGUA DESTILADA 10 ML", 1.0, 0.58),
-        ("KIT CRESCIMENTO DOS FIOS", 1.0, 98.23), ("KIT HIDRATAÇÃO DOS FIOS", 1.0, 52.80), ("KIT DERMATITE SEBORREICA,CASPA E PRURIDO NO COURO CABELUDO", 1.0, 70.40),
-        ("KIT ALOPECIA PADRAO FEMININO", 1.0, 354.60), ("KIT ALOPECIA AREATA EM PLACA", 1.0, 186.23), ("KIT ANTIAGING- ENVELHECIMENTO CAPILAR E CANICE", 1.0, 144.32),
-        ("KIT PÓS PRAIA", 1.0, 70.40), ("KIT EFLÚVIO TELÓGENO PÓS PARTO", 1.0, 41.36), ("KIT CRESCIMENTO DE BARBA", 1.0, 125.67),
-        ("KIT EFLÚVIOTELÓGENO", 1.0, 134.47), ("KIT ALOPECIA ANDROGENÉTICA MASCULINA", 1.0, 241.86), ("Minoxidil 0,5% (5mg/ml) 2ml", 1.0, 6.82),
-        ("DUTASTERIDA 0,1%", 1.0, 11.02), ("bFGF; IGF; VEGF; Copper Peptídeo* 1,2% 2ml", 1.0, 16.02), ("EPINEFRINA 1 MG/ML", 1.0, 2.39),
-        ("ATROPINA 0,25 MG/ML 1ML AMP", 1.0, 1.45), ("FOSFATO DISSODICO DE DEXAMETASONA 4 MG/ML SOL INJ CX 100 AMP VD INC X 2,5 ML(EMB HOSP)", 1.0, 3.99),
-        ("CLOREXIDINA 2% ALMOT.100ML", 1.0, 15.04), ("TESTE COVID-19", 1.0, 10.40), ("HEPARINA", 1.0, 9.98),
-        ("LEVOFLOXACINO 5 MG/ML", 1.0, 14.15), ("FENTANEST 0,05 MG/ML", 1.0, 66.00), ("ADREN 1 MG/ML SOL INJ", 1.0, 2.59),
-        ("Trocater masculino", 1.0, 0.0), ("Trocater feminino", 1.0, 0.0), ("Campo operatório estéril", 1.0, 0.0),
-        ("Lâmina de bisturir nº 11", 1.0, 0.0), ("seringa de 20 ml", 1.0, 0.0), ("Anestesia sistesin com vaso - mL", 1.0, 0.0),
-        ("Anestesia sistesin sem vaso - mL", 1.0, 0.0), ("Agulha Rosa - 40x1,20 mm", 1.0, 0.0), ("Agulha Amarela - 13x0,00 mm", 1.0, 0.0),
-        ("Agulha Preta - 30x0,70 mm", 1.0, 0.0), ("Adesivo impermeável", 1.0, 0.0), ("Gaze - pacote", 1.0, 0.0),
-        ("Implante Masculino Standard (Até 5 pellets)", 1.0, 0.0), ("Implante Masculino Standard 6 pellets", 1.0, 0.0), 
-        ("Implante Masculino Standard 7 pellets", 1.0, 0.0), ("Implante Masculino Standard 8 pellets", 1.0, 0.0), 
-        ("Implante Masculino Standard 9 pellets", 1.0, 0.0), ("Implante Masculino Standard 10 pellets", 1.0, 0.0), 
-        ("Implante Feminino Silástico com Gestrinona G3 + (ACIMA DE 3 GESTRINONAS)", 1.0, 0.0), 
-        ("Implante Feminino Silástico com Gestrinona (ATÉ 3 GESTRINONAS)", 1.0, 0.0), 
-        ("Implante Feminino | Silástico sem Gestrinona", 1.0, 0.0), 
-        ("Implante Feminino com Gestrinona | Absorvivel G80", 1.0, 0.0), 
-        ("Implante Feminino com Gestrinona | Absorvivel E50", 1.0, 0.0), 
-        ("Implante Feminino com Gestrinona | Absorvivel T80", 1.0, 0.0), 
-        ("Implante Feminino sem Gestrinona | Absorvivel E50", 1.0, 0.0), 
-        ("Implante Feminino sem Gestrinona | Absorvivel T80", 1.0, 0.0), 
-        ("Implante NADH 100 mg(antioxidante / Fadiga)", 1.0, 0.0), 
-        ("Implante NADH 200 mg(antioxidante / Fadiga)", 1.0, 0.0), 
-        ("Implante GINO PLUS (testo + Nadh).", 1.0, 0.0), 
-        ("Bandeja de Diu", 1.0, 0.0), ("Espéculo Vaginal", 1.0, 0.0), ("Material de ultrasson", 1.0, 0.0), 
-        ("Diu - dispositivo", 1.0, 0.0), ("DIU Myrena / Kyleena", 1.0, 0.0), ("Inserção Diu cobre / prata", 1.0, 0.0), 
-        ("Tesoura Kerron", 1.0, 0.0), ("Pote coletor", 1.0, 0.0), ("Algodão", 1.0, 0.0), 
-        ("Escova Endocervical", 1.0, 0.0), ("Swab de algodão", 1.0, 0.0), ("Luvas de procedimento", 1.0, 0.0), 
-        ("Lâmina de microscopia", 1.0, 0.0), ("Porta-lâminas", 1.0, 0.0), ("Espátula de Ayre", 1.0, 0.0), 
-        ("Lâmina de vidro com extremidade fosca", 1.0, 0.0)
-    ]
-    st.session_state["df_lista_insumos"] = pd.DataFrame(lista_insumos_padrao, columns=["Material", "qt", "valor"])
+    st.session_state["df_lista_insumos"] = pd.DataFrame([
+        ("Seringa 10mL", 1.0, 0.25), ("Luva de Procedimento", 1.0, 0.50), ("Gaze", 1.0, 4.58)
+    ], columns=["Material", "qt", "valor"])
 
     st.session_state["df_lista_taxas"] = pd.DataFrame({"Taxa": ["Débito", "Crédito 1x", "Crédito 3x"], "Porcentagem (%)": [0.80, 1.20, 3.50]})
 
     st.session_state["df_custos_categorias"] = {
-        "1. Despesa com pessoal": pd.DataFrame([{"ÍTEM": "1.1 Total da folha de pagamento", "MENSAL (R$)": 0.0}, {"ÍTEM": "1.2 Despesas com alimentação e transporte", "MENSAL (R$)": 0.0}]),
+        "1. Despesa com pessoal": pd.DataFrame([{"ÍTEM": "1.1 Total da folha de pagamento", "MENSAL (R$)": 0.0}]),
         "2. Seguros": pd.DataFrame([{"ÍTEM": "2.1 Seguros do estabelecimento", "MENSAL (R$)": 0.0}]),
-        "3. Manutenção e conservação": pd.DataFrame([{"ÍTEM": "3.1 Elevadores", "MENSAL (R$)": 0.0}, {"ÍTEM": "3.4 Manutenção de equipamentos", "MENSAL (R$)": 0.0}]),
+        "3. Manutenção e conservação": pd.DataFrame([{"ÍTEM": "3.1 Manutenção de equipamentos", "MENSAL (R$)": 0.0}]),
         "4. Despesas estrutura e de consumo": pd.DataFrame([{"ÍTEM": "4.1 Aluguel", "MENSAL (R$)": 0.0}, {"ÍTEM": "4.3 Energia Elétrica", "MENSAL (R$)": 0.0}]),
         "5. Despesas Administrativas e Licenças": pd.DataFrame([{"ÍTEM": "5.1 Contador", "MENSAL (R$)": 0.0}]),
         "6. Despesas com TI": pd.DataFrame([{"ÍTEM": "6.1 Sistemas de gestão", "MENSAL (R$)": 0.0}]),
-        "7. Despesas bancárias": pd.DataFrame([{"ÍTEM": "7.1 Taxa administrativa de contas", "MENSAL (R$)": 0.0}, {"ÍTEM": "7.2 Máquinas de cartão", "MENSAL (R$)": 0.0}]),
-        "8. Marketing e vendas": pd.DataFrame([{"ÍTEM": "8.1 Agência", "MENSAL (R$)": 0.0}, {"ÍTEM": "8.4 Tráfego Pago e gestão", "MENSAL (R$)": 0.0}])
+        "7. Despesas bancárias": pd.DataFrame([{"ÍTEM": "7.1 Taxa administrativa de contas", "MENSAL (R$)": 0.0}]),
+        "8. Marketing e vendas": pd.DataFrame([{"ÍTEM": "8.1 Agência", "MENSAL (R$)": 0.0}])
     }
     salvar_estado_nuvem()
 
@@ -279,48 +219,6 @@ with st.sidebar:
 # ==========================================
 def render_ficha_tecnica():
     with st.sidebar:
-        st.header("💾 Salvar / Carregar Ficha")
-        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_ficha")
-        if arquivo_upload is not None:
-            try:
-                dados_json = json.load(arquivo_upload)
-                for k, v in dados_json.items():
-                    if k in ["df_ficha_maquinas", "df_ficha_insumos"]:
-                        st.session_state[k] = pd.DataFrame(v)
-                    else:
-                        st.session_state[k] = v
-
-                st.session_state.setdefault("custo_aluguel", 0.0)
-                st.session_state.setdefault("indireto", "Sim")
-                st.session_state.setdefault("valor_hora", 48.14)
-                salvar_estado_nuvem()
-                st.success("Ficha carregada e salva na nuvem com sucesso!")
-            except Exception:
-                st.error("Erro ao ler o arquivo.")
-        st.divider()
-
-        dados_para_salvar = {
-            "servico_atual": st.session_state.get("servico_atual", ""),
-            "tempo_min": st.session_state.get("tempo_min", 60),
-            "repasse_fixo": st.session_state.get("repasse_fixo", 0.0),
-            "df_ficha_maquinas": st.session_state.get("df_ficha_maquinas", df_maquinas_padrao()).to_dict(orient="records"),
-            "df_ficha_insumos": st.session_state.get("df_ficha_insumos", df_insumos_padrao()).to_dict(orient="records"),
-            "taxa_comissao": st.session_state.get("taxa_comissao", 0.0),
-            "taxa_cartao": st.session_state.get("taxa_cartao", 0.0),
-            "taxa_imposto": st.session_state.get("taxa_imposto", 12.0),
-            "preco_escolhido": st.session_state.get("preco_escolhido", 0.0),
-            "custo_aluguel": st.session_state.get("custo_aluguel", 0.0),
-            "indireto": st.session_state.get("indireto", "Sim"),
-            "valor_hora": st.session_state.get("valor_hora", 48.14)
-        }
-
-        st.download_button(
-            label="📥 Baixar Backup Local",
-            data=json.dumps(dados_para_salvar, indent=4),
-            file_name=f"simulacao_{st.session_state.get('servico_atual', 'servico').replace(' ', '_')}.json",
-            mime="application/json"
-        )
-        st.divider()
         st.header("⚙️ Parâmetros Globais")
         st.selectbox("Com Custo Indireto?", ["Sim", "Não"], key="indireto")
         st.number_input("Valor da Hora Clínica (R$)", min_value=0.0, step=1.0, format="%.2f", key="valor_hora")
@@ -407,7 +305,7 @@ def render_ficha_tecnica():
         label_visibility="collapsed"
     )
 
-    if st.button("💾 Salvar Alterações deste Serviço na Nuvem", type="primary"):
+    if st.button("💾 Salvar Alterações DESTE SERVIÇO na Nuvem", type="primary"):
         st.session_state["db_servicos"][st.session_state["servico_atual"]] = {
             "tempo_min": st.session_state["tempo_min"],
             "maquinas": st.session_state["df_ficha_maquinas"].to_dict(orient="records"),
@@ -420,7 +318,7 @@ def render_ficha_tecnica():
             "preco_escolhido": st.session_state["preco_escolhido"]
         }
         salvar_estado_nuvem()
-        st.success("Sincronizado com o Supabase com sucesso!")
+        st.success("Salvo com sucesso na nuvem!")
 
     st.divider()
     col_esq, col_dir = st.columns([2, 1])
@@ -632,20 +530,11 @@ def render_ficha_tecnica():
 # MÓDULO 2: CUSTOS FIXOS
 # ==========================================
 def render_custos_fixos():
-    with st.sidebar:
-        st.header("💾 Salvar / Carregar Custos Fixos")
-        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_custos")
-        if arquivo_upload is not None:
-            try:
-                dados_salvos = json.load(arquivo_upload)
-                if "df_custos_categorias" in dados_salvos:
-                    st.session_state["df_custos_categorias"] = {k: pd.DataFrame(v) for k, v in dados_salvos["df_custos_categorias"].items()}
-                salvar_estado_nuvem()
-                st.success("Dados carregados e salvos na nuvem!")
-            except Exception: st.error("Erro ao ler o arquivo.")
-        st.divider()
-        dados_salvar = {"df_custos_categorias": {k: v.to_dict(orient="records") for k, v in st.session_state["df_custos_categorias"].items()}}
-        st.download_button("📥 Baixar Backup Local", data=json.dumps(dados_salvar, indent=4), file_name="custos_fixos.json", mime="application/json")
+    st.title("Gestão de Custos Fixos e Hora Clínica")
+    
+    if st.button("💾 Salvar Alterações de Custos na Nuvem", type="primary"):
+        salvar_estado_nuvem()
+        st.success("Custos sincronizados com a Nuvem com sucesso!")
 
     def renderizar_categoria_dinamica(titulo, chave):
         with st.expander(titulo, expanded=False):
@@ -688,7 +577,6 @@ def render_custos_fixos():
             st.markdown(f"**Total da Categoria:** R$ {total:,.2f}")
             return total
 
-    st.title("Gestão de Custos Fixos e Hora Clínica")
     st.subheader("⚙️ Gerenciar Categorias")
     
     tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
@@ -737,104 +625,188 @@ def render_custos_fixos():
             st.rerun()
 
     st.divider()
-    col_inputs, col_dashboard = st.columns([1.8, 1])
 
-    with col_inputs:
-        despesa_mensal_media = 0.0
-        resumo_dados = []
-        if not st.session_state["df_custos_categorias"]:
-            st.info("Nenhuma categoria. Adicione no menu acima.")
-        else:
-            for i, categoria in enumerate(st.session_state["df_custos_categorias"].keys()):
-                tot_cat = renderizar_categoria_dinamica(categoria, f"cat_dyn_{i}")
-                despesa_mensal_media += tot_cat
-                resumo_dados.append({"Categoria": categoria, "Média Mensal": tot_cat})
-
-    with col_dashboard:
-        st.subheader("Cálculo da Hora Clínica")
-        despesa_anual = despesa_mensal_media * 12
-        
-        st.info(f"**Despesa Anual:** R$ {despesa_anual:,.2f}")
-        st.success(f"**Despesa Mensal Média:** R$ {despesa_mensal_media:,.2f}")
-        st.divider()
-        
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            horas_diarias = st.number_input("Horas Diárias", value=8.0, step=0.5, format="%.1f")
-            dias_semana = st.number_input("Dias na semana", value=5.0, step=0.5, format="%.1f")
-        with col_p2:
-            qtd_salas = st.number_input("Qtd de Salas", value=4.0, step=1.0, format="%.1f")
-
-        horas_semanais = horas_diarias * dias_semana
-        horas_mensais = horas_semanais * 4.5
-        custo_hora_clinica = despesa_mensal_media / horas_mensais if horas_mensais > 0 else 0.0
-        custo_dia_clinica = custo_hora_clinica * horas_diarias
-        custo_hora_atendimento = custo_hora_clinica / qtd_salas if qtd_salas > 0 else 0.0
-        custo_dia_atendimento = custo_dia_clinica / qtd_salas if qtd_salas > 0 else 0.0
-
-        st.markdown("#### Índices")
-        st.write(f"**Horas Mensais Totais:** {horas_mensais:.1f}h")
-        st.write(f"**Custo Hora Clínica:** R$ {custo_hora_clinica:,.2f}")
-        st.write(f"**Custo Dia Clínica:** R$ {custo_dia_clinica:,.2f}")
-        st.write(f"**Custo Hora Atendimento (por sala):** R$ {custo_hora_atendimento:,.2f}")
+    # Processamento dos Dados das Categorias
+    st.subheader("📝 Preenchimento de Custos (Expandir Abaixo)")
+    despesa_mensal_media = 0.0
+    if not st.session_state["df_custos_categorias"]:
+        st.info("Nenhuma categoria. Adicione no menu acima.")
+    else:
+        for i, categoria in enumerate(st.session_state["df_custos_categorias"].keys()):
+            tot_cat = renderizar_categoria_dinamica(categoria, f"cat_dyn_{i}")
+            despesa_mensal_media += tot_cat
 
     st.divider()
-    st.subheader("RESUMO GERAL")
-    col_tabela, col_grafico = st.columns([1, 2])
+    st.subheader("⏱️ Configuração da Hora Clínica")
+    col_p1, col_p2, col_p3 = st.columns(3)
     
-    with col_tabela:
-        if resumo_dados:
-            df_resumo = pd.DataFrame(resumo_dados)
-            df_resumo["% de Custo"] = (df_resumo["Média Mensal"] / despesa_mensal_media) if despesa_mensal_media > 0 else 0.0
-            st.dataframe(df_resumo.style.format({"Média Mensal": "R$ {:,.2f}", "% de Custo": "{:.1%}"}), use_container_width=True, hide_index=True)
-        else:
-            st.warning("Adicione categorias e valores para ver o resumo geral.")
+    with col_p1:
+        horas_diarias = st.number_input("Horas Diárias", value=8.0, step=0.5, format="%.1f")
+    with col_p2:
+        dias_semana = st.number_input("Dias na semana", value=5.0, step=0.5, format="%.1f")
+    with col_p3:
+        qtd_salas = st.number_input("Qtd de Salas", value=14.0, step=1.0, format="%.1f")
 
-    with col_grafico:
-        dados_grafico = []
-        for cat, df_cat in st.session_state["df_custos_categorias"].items():
-            total_cat = pd.to_numeric(df_cat["MENSAL (R$)"], errors="coerce").fillna(0.0).sum()
-            for _, row in df_cat.iterrows():
-                valor = float(row.get("MENSAL (R$)", 0.0))
-                if valor > 0:
-                    pct_cat = valor / total_cat if total_cat > 0 else 0.0
-                    pct_total = valor / despesa_mensal_media if despesa_mensal_media > 0 else 0.0
-                    dados_grafico.append({
-                        "Categoria": cat, "Subitem": row["ÍTEM"], "Valor (R$)": valor,
-                        "% na Categoria": pct_cat, "% no Total": pct_total
-                    })
+    horas_semanais = horas_diarias * dias_semana
+    horas_mensais = horas_semanais * 4.5
+    despesa_anual = despesa_mensal_media * 12
 
-        if dados_grafico:
-            df_grafico = pd.DataFrame(dados_grafico).sort_values(by="Valor (R$)", ascending=True)
-            fig = px.bar(
-                df_grafico, x="Valor (R$)", y="Subitem", color="Categoria", orientation="h", text="Valor (R$)", 
-                custom_data=["% na Categoria", "% no Total"], title="Despesa Mensal por Subitem"
-            )
-            fig.update_traces(
-                texttemplate='R$ %{text:,.2f}', textposition='outside',
-                hovertemplate="<b>%{y}</b><br>Valor Mensal: R$ %{x:,.2f}<br>% na Categoria: %{customdata[0]:.1%}<br>% no Total Geral: %{customdata[1]:.1%}<extra></extra>"
-            )
-            fig.update_layout(height=max(400, len(df_grafico) * 35), margin=dict(l=10, r=10, t=40, b=10), yaxis_title="", xaxis_title="Valor Mensal (R$)", legend_title="Categoria", plot_bgcolor="rgba(0,0,0,0)")
-            st.plotly_chart(fig, use_container_width=True)
+    custo_hora_clinica = despesa_mensal_media / horas_mensais if horas_mensais > 0 else 0.0
+    custo_dia_clinica = custo_hora_clinica * horas_diarias
+    custo_hora_atendimento = custo_hora_clinica / qtd_salas if qtd_salas > 0 else 0.0
+    
+    st.caption(f"Total de Horas Mensais da Clínica: **{horas_mensais:.1f}h** | Custo Dia Clínica: **R$ {custo_dia_clinica:,.2f}**")
+
+    # ==========================================
+    # NOVO DASHBOARD GERAL PROFISSIONAL
+    # ==========================================
+    st.divider()
+    st.markdown(f"<h3 style='color: {COR_CABECALHO};'>📊 DASHBOARD FINANCEIRO E KPIs</h3>", unsafe_allow_html=True)
+
+    # 1. KPIs
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    kpi1.metric("Despesa Mensal", f"R$ {despesa_mensal_media:,.2f}")
+    kpi2.metric("Despesa Anual", f"R$ {despesa_anual:,.2f}")
+    kpi3.metric("Custo Hora Clínica", f"R$ {custo_hora_clinica:,.2f}")
+    kpi4.metric("Custo Hora (por Sala)", f"R$ {custo_hora_atendimento:,.2f}")
+
+    st.write("")
+    st.write("")
+
+    # 2. Consolidação de Dados
+    dados_completos = []
+    for cat, df_cat in st.session_state["df_custos_categorias"].items():
+        for _, row in df_cat.iterrows():
+            valor = float(row.get("MENSAL (R$)", 0.0))
+            if valor > 0:
+                dados_completos.append({
+                    "Categoria": cat,
+                    "Subitem": row["ÍTEM"],
+                    "Valor (R$)": valor
+                })
+
+    if not dados_completos:
+        st.warning("Adicione valores nas categorias acima para ver o Dashboard ganhar vida.")
+        return
+
+    df_dash = pd.DataFrame(dados_completos)
+
+    # 3. Controles e Filtros
+    st.markdown("#### 🔎 Filtros Dinâmicos")
+    c_filtro1, c_filtro2 = st.columns([2, 1])
+    todas_categorias = sorted(df_dash["Categoria"].unique().tolist())
+    
+    categorias_selecionadas = c_filtro1.multiselect(
+        "Selecione as categorias que deseja visualizar nos gráficos:", 
+        options=todas_categorias, 
+        default=todas_categorias,
+        label_visibility="collapsed"
+    )
+    
+    if not categorias_selecionadas:
+        st.info("Nenhuma categoria selecionada.")
+        return
+
+    df_filtrado = df_dash[df_dash["Categoria"].isin(categorias_selecionadas)].copy()
+    total_filtrado = df_filtrado["Valor (R$)"].sum()
+    
+    c_filtro2.metric("Total (Categorias Filtradas)", f"R$ {total_filtrado:,.2f}")
+    st.write("")
+
+    # 4. Gráficos Plotly Premium
+    col_graf1, col_graf2 = st.columns([1, 1.2])
+    
+    # Paleta de Cores Profissional (Tons de Roxo/Azul)
+    paleta_premium = ['#7030A0', '#9b59b6', '#8e44ad', '#2980b9', '#3498db', '#1abc9c', '#16a085', '#27ae60', '#f39c12']
+
+    with col_graf1:
+        st.markdown("<h5 style='text-align: center;'>Distribuição Macro</h5>", unsafe_allow_html=True)
+        df_agrupado_cat = df_filtrado.groupby("Categoria", as_index=False)["Valor (R$)"].sum()
+        
+        fig_donut = px.pie(
+            df_agrupado_cat, 
+            values='Valor (R$)', 
+            names='Categoria', 
+            hole=0.65,
+            color_discrete_sequence=paleta_premium
+        )
+        fig_donut.update_traces(
+            textinfo='percent', 
+            hoverinfo='label+percent+value',
+            textfont_size=14, 
+            marker=dict(line=dict(color='#FFFFFF', width=2))
+        )
+        fig_donut.update_layout(
+            showlegend=True, 
+            legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
+            margin=dict(t=20, b=20, l=20, r=20),
+            annotations=[dict(text=f"<b>R$ {total_filtrado:,.0f}</b>", x=0.5, y=0.5, font_size=18, showarrow=False)]
+        )
+        st.plotly_chart(fig_donut, use_container_width=True)
+
+    with col_graf2:
+        st.markdown("<h5 style='text-align: center;'>Detalhamento por Despesa</h5>", unsafe_allow_html=True)
+        df_bar = df_filtrado.sort_values(by="Valor (R$)", ascending=True)
+        max_val = df_bar["Valor (R$)"].max()
+        
+        fig_bar = px.bar(
+            df_bar, 
+            x="Valor (R$)", 
+            y="Subitem", 
+            color="Categoria", 
+            orientation="h",
+            text="Valor (R$)",
+            color_discrete_sequence=paleta_premium
+        )
+        
+        # AQUI ESTÁ A CORREÇÃO PRINCIPAL: Margem extra na direita e limite do eixo X forçado
+        fig_bar.update_xaxes(range=[0, max_val * 1.35]) 
+        
+        fig_bar.update_traces(
+            texttemplate='<b>R$ %{text:,.2f}</b>', 
+            textposition='outside', # Texto fora da barra, mas agora com espaço
+            textfont=dict(size=12)
+        )
+        
+        fig_bar.update_layout(
+            xaxis_title="", 
+            yaxis_title="",
+            xaxis=dict(showgrid=True, gridcolor='#e8e8e8', zeroline=False),
+            yaxis=dict(showgrid=False),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            height=max(350, len(df_bar) * 35), 
+            margin=dict(l=10, r=20, t=20, b=10), # Margens limpas
+            showlegend=False
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    # 5. Tabela de Dados Escondida (Sanfona)
+    with st.expander("📄 Ver Tabela Detalhada", expanded=False):
+        df_tabela = df_filtrado.copy()
+        df_tabela = df_tabela.sort_values(by="Valor (R$)", ascending=False)
+        df_tabela["% do Total Filtrado"] = (df_tabela["Valor (R$)"] / total_filtrado)
+        
+        st.dataframe(
+            df_tabela.style.format({
+                "Valor (R$)": "R$ {:,.2f}",
+                "% do Total Filtrado": "{:.1%}"
+            }),
+            use_container_width=True,
+            hide_index=True
+        )
+
 
 # ==========================================
 # MÓDULO 3: EQUIPAMENTOS
 # ==========================================
 def render_equipamentos():
-    with st.sidebar:
-        st.header("💾 Salvar / Carregar Equipamentos")
-        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_eq")
-        if arquivo_upload is not None:
-            try:
-                st.session_state["df_lista_equipamentos"] = pd.DataFrame(json.load(arquivo_upload)["df_lista_equipamentos"])
-                salvar_estado_nuvem()
-                st.success("Dados carregados e salvos na nuvem!")
-            except Exception: st.error("Erro ao ler o arquivo.")
-        st.divider()
-        dados_salvar = {"df_lista_equipamentos": st.session_state["df_lista_equipamentos"].to_dict(orient="records")}
-        st.download_button("📥 Baixar Backup Local", data=json.dumps(dados_salvar, indent=4), file_name="equipamentos.json", mime="application/json")
-
     st.title("Registro de Equipamentos")
+    
+    if st.button("💾 Salvar Alterações de Equip. na Nuvem", type="primary"):
+        salvar_estado_nuvem()
+        st.success("Equipamentos sincronizados com a Nuvem com sucesso!")
+
     st.subheader("⚙️ Gerenciar Equipamentos")
     
     tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
@@ -915,20 +887,12 @@ def render_equipamentos():
 # MÓDULO 4: INSUMOS
 # ==========================================
 def render_insumos():
-    with st.sidebar:
-        st.header("💾 Salvar / Carregar Insumos")
-        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_ins")
-        if arquivo_upload is not None:
-            try:
-                st.session_state["df_lista_insumos"] = pd.DataFrame(json.load(arquivo_upload)["df_lista_insumos"])
-                salvar_estado_nuvem()
-                st.success("Dados carregados e salvos na nuvem!")
-            except Exception: st.error("Erro ao ler o arquivo.")
-        st.divider()
-        dados_salvar = {"df_lista_insumos": st.session_state["df_lista_insumos"].to_dict(orient="records")}
-        st.download_button("📥 Baixar Backup Local", data=json.dumps(dados_salvar, indent=4), file_name="insumos.json", mime="application/json")
-
     st.title("Lista de Insumos e Materiais")
+    
+    if st.button("💾 Salvar Alterações de Insumos na Nuvem", type="primary"):
+        salvar_estado_nuvem()
+        st.success("Insumos sincronizados com a Nuvem com sucesso!")
+
     st.subheader("⚙️ Gerenciar Insumos")
     
     tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
@@ -983,20 +947,12 @@ def render_insumos():
 # MÓDULO 5: TAXAS
 # ==========================================
 def render_taxas():
-    with st.sidebar:
-        st.header("💾 Salvar / Carregar Taxas")
-        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_taxas")
-        if arquivo_upload is not None:
-            try:
-                st.session_state["df_lista_taxas"] = pd.DataFrame(json.load(arquivo_upload)["df_lista_taxas"])
-                salvar_estado_nuvem()
-                st.success("Dados carregados e salvos na nuvem!")
-            except Exception: st.error("Erro ao ler o arquivo.")
-        st.divider()
-        dados_salvar = {"df_lista_taxas": st.session_state["df_lista_taxas"].to_dict(orient="records")}
-        st.download_button("📥 Baixar Backup Local", data=json.dumps(dados_salvar, indent=4), file_name="taxas.json", mime="application/json")
-
     st.title("Impostos e Taxas")
+    
+    if st.button("💾 Salvar Alterações de Taxas na Nuvem", type="primary"):
+        salvar_estado_nuvem()
+        st.success("Taxas sincronizadas com a Nuvem com sucesso!")
+
     st.subheader("⚙️ Gerenciar Taxas")
     
     tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])

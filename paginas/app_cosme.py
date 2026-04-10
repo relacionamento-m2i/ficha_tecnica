@@ -14,7 +14,7 @@ except ImportError:
 # 1. IDENTIFICAÇÃO DO CLIENTE / ARQUIVO
 # ==========================================
 # Identificador único deste cliente para o Supabase
-ID_CLIENTE = "Bruno_Cosme" 
+ID_CLIENTE = "Bruno_Cosme"
 
 # ==========================================
 # 2. CONEXÃO COM A NUVEM (SUPABASE)
@@ -179,14 +179,74 @@ def inicializar_padroes_caso_vazio():
     st.session_state["df_lista_taxas"] = pd.DataFrame({"Taxa": ["Débito", "Crédito 1x", "Crédito 3x"], "Porcentagem (%)": [0.80, 1.20, 3.50]})
 
     st.session_state["df_custos_categorias"] = {
-        "1. Despesa com pessoal": pd.DataFrame([{"ÍTEM": "1.1 Total da folha de pagamento", "MENSAL (R$)": 0.0}, {"ÍTEM": "1.2 Despesas com alimentação e transporte", "MENSAL (R$)": 0.0}]),
-        "2. Seguros": pd.DataFrame([{"ÍTEM": "2.1 Seguros do estabelecimento", "MENSAL (R$)": 0.0}]),
-        "3. Manutenção e conservação": pd.DataFrame([{"ÍTEM": "3.1 Elevadores", "MENSAL (R$)": 0.0}, {"ÍTEM": "3.4 Manutenção de equipamentos", "MENSAL (R$)": 0.0}]),
-        "4. Despesas estrutura e de consumo": pd.DataFrame([{"ÍTEM": "4.1 Aluguel", "MENSAL (R$)": 0.0}, {"ÍTEM": "4.3 Energia Elétrica", "MENSAL (R$)": 0.0}]),
-        "5. Despesas Administrativas e Licenças": pd.DataFrame([{"ÍTEM": "5.1 Contador", "MENSAL (R$)": 0.0}]),
-        "6. Despesas com TI": pd.DataFrame([{"ÍTEM": "6.1 Sistemas de gestão", "MENSAL (R$)": 0.0}]),
-        "7. Despesas bancárias": pd.DataFrame([{"ÍTEM": "7.1 Taxa administrativa de contas", "MENSAL (R$)": 0.0}, {"ÍTEM": "7.2 Máquinas de cartão", "MENSAL (R$)": 0.0}]),
-        "8. Marketing e vendas": pd.DataFrame([{"ÍTEM": "8.1 Agência", "MENSAL (R$)": 0.0}, {"ÍTEM": "8.4 Tráfego Pago e gestão", "MENSAL (R$)": 0.0}])
+        "1. Despesa com pessoal": pd.DataFrame([
+            {"ÍTEM": "1.1 Total da folha de pagamento clt (com 13º)", "MENSAL (R$)": 36627.02},
+            {"ÍTEM": "1.2 Despesas com alimentação e transporte", "MENSAL (R$)": 1172.38},
+            {"ÍTEM": "1.3 Reserva para recisões", "MENSAL (R$)": 3662.70},
+            {"ÍTEM": "Plano de Saúde", "MENSAL (R$)": 9000.00},
+            {"ÍTEM": "PJ vendas", "MENSAL (R$)": 10000.00},
+            {"ÍTEM": "INSS", "MENSAL (R$)": 25000.00},
+            {"ÍTEM": "FGTS", "MENSAL (R$)": 7900.00},
+            {"ÍTEM": "1.5 Despesa com treinamentos", "MENSAL (R$)": 200.00},
+            {"ÍTEM": "Bonificação", "MENSAL (R$)": 8916.67},
+            {"ÍTEM": "1.7 Uniformes", "MENSAL (R$)": 763.03}
+        ]),
+        "2. Seguros": pd.DataFrame([
+            {"ÍTEM": "2.1 Seguros do estabelecimento", "MENSAL (R$)": 333.92},
+            {"ÍTEM": "2.2 Seguro médico", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "2.3 Outros seguros", "MENSAL (R$)": 0.0}
+        ]),
+        "3. Manutenção e conservação": pd.DataFrame([
+            {"ÍTEM": "3.1 Elevadores", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.2 Manutenção do prédio", "MENSAL (R$)": 2000.00},
+            {"ÍTEM": "3.3 Coleta de lixo hospitalar", "MENSAL (R$)": 209.00},
+            {"ÍTEM": "3.4 Manutenção de equipamentos", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.5 Pinturas", "MENSAL (R$)": 1666.67},
+            {"ÍTEM": "3.6 jardins", "MENSAL (R$)": 1000.00},
+            {"ÍTEM": "3.7 Limpeza de Vidro", "MENSAL (R$)": 389.00},
+            {"ÍTEM": "3.8 Reserva compra equipamentos (depreciação)", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.9 Outras despesas", "MENSAL (R$)": 0.0}
+        ]),
+        "4. Despesas estrutura e de consumo": pd.DataFrame([
+            {"ÍTEM": "4.1 Aluguel", "MENSAL (R$)": 21000.00},
+            {"ÍTEM": "4.2 Café", "MENSAL (R$)": 1456.00},
+            {"ÍTEM": "4.3 Energia Elétrica", "MENSAL (R$)": 6000.00},
+            {"ÍTEM": "4.4 Água", "MENSAL (R$)": 2000.00},
+            {"ÍTEM": "4.5 Material Oli Essence", "MENSAL (R$)": 843.00},
+            {"ÍTEM": "4.6 Internet", "MENSAL (R$)": 715.00},
+            {"ÍTEM": "4.7 Material de limpeza", "MENSAL (R$)": 2000.00},
+            {"ÍTEM": "4.8 Material para copa / Experiencia do cliente", "MENSAL (R$)": 2500.00},
+            {"ÍTEM": "4.9 Material de escritório", "MENSAL (R$)": 1000.00},
+            {"ÍTEM": "4.10 IPTU", "MENSAL (R$)": 1166.67},
+            {"ÍTEM": "4.11 Segurança Eletrônica", "MENSAL (R$)": 338.54}
+        ]),
+        "5. Despesas Administrativas": pd.DataFrame([
+            {"ÍTEM": "5.1 Contador", "MENSAL (R$)": 6549.15},
+            {"ÍTEM": "5.2 Advogado", "MENSAL (R$)": 5000.00},
+            {"ÍTEM": "Consultoria Gestão", "MENSAL (R$)": 10000.00},
+            {"ÍTEM": "CRM", "MENSAL (R$)": 537.18},
+            {"ÍTEM": "5.3 Outras despesas administrativas (CERT. DIG.)", "MENSAL (R$)": 10.83}
+        ]),
+        "6. Despesas com TI": pd.DataFrame([
+            {"ÍTEM": "Sistemas de gestão Amigo", "MENSAL (R$)": 1821.42},
+            {"ÍTEM": "Suporte Técnico Suporte One", "MENSAL (R$)": 1200.00},
+            {"ÍTEM": "Adobe", "MENSAL (R$)": 90.00},
+            {"ÍTEM": "Hospedagem / site", "MENSAL (R$)": 170.00},
+            {"ÍTEM": "Spotify", "MENSAL (R$)": 40.83},
+            {"ÍTEM": "Chat bot / recursos de automação", "MENSAL (R$)": 762.00}
+        ]),
+        "7. Despesas bancárias": pd.DataFrame([
+            {"ÍTEM": "7.1 Taxa administrativa de contas", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "7.2 Máquinas de cartão", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "7.3 Iof / juros", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "7.4 Outras despesas", "MENSAL (R$)": 0.0}
+        ]),
+        "8. Marketing e vendas": pd.DataFrame([
+            {"ÍTEM": "8.1 Agência", "MENSAL (R$)": 9475.00},
+            {"ÍTEM": "8.2 Tráfego", "MENSAL (R$)": 2000.00},
+            {"ÍTEM": "8.3 Impulsionamento", "MENSAL (R$)": 7412.00},
+            {"ÍTEM": "8.4 Outras despesas", "MENSAL (R$)": 0.0}
+        ])
     }
     salvar_estado_nuvem()
 
@@ -278,48 +338,6 @@ with st.sidebar:
 # ==========================================
 def render_ficha_tecnica():
     with st.sidebar:
-        st.header("💾 Salvar / Carregar Ficha")
-        arquivo_upload = st.file_uploader("Carregar backup (.json) para a Nuvem", type=["json"], key="up_ficha")
-        if arquivo_upload is not None:
-            try:
-                dados_json = json.load(arquivo_upload)
-                for k, v in dados_json.items():
-                    if k in ["df_ficha_maquinas", "df_ficha_insumos"]:
-                        st.session_state[k] = pd.DataFrame(v)
-                    else:
-                        st.session_state[k] = v
-
-                st.session_state.setdefault("custo_aluguel", 0.0)
-                st.session_state.setdefault("indireto", "Sim")
-                st.session_state.setdefault("valor_hora", 48.14)
-                salvar_estado_nuvem()
-                st.success("Ficha carregada e salva na nuvem com sucesso!")
-            except Exception:
-                st.error("Erro ao ler o arquivo.")
-        st.divider()
-
-        dados_para_salvar = {
-            "servico_atual": st.session_state.get("servico_atual", ""),
-            "tempo_min": st.session_state.get("tempo_min", 60),
-            "repasse_fixo": st.session_state.get("repasse_fixo", 0.0),
-            "df_ficha_maquinas": st.session_state.get("df_ficha_maquinas", df_maquinas_padrao()).to_dict(orient="records"),
-            "df_ficha_insumos": st.session_state.get("df_ficha_insumos", df_insumos_padrao()).to_dict(orient="records"),
-            "taxa_comissao": st.session_state.get("taxa_comissao", 0.0),
-            "taxa_cartao": st.session_state.get("taxa_cartao", 0.0),
-            "taxa_imposto": st.session_state.get("taxa_imposto", 12.0),
-            "preco_escolhido": st.session_state.get("preco_escolhido", 0.0),
-            "custo_aluguel": st.session_state.get("custo_aluguel", 0.0),
-            "indireto": st.session_state.get("indireto", "Sim"),
-            "valor_hora": st.session_state.get("valor_hora", 48.14)
-        }
-
-        st.download_button(
-            label="📥 Baixar Backup Local",
-            data=json.dumps(dados_para_salvar, indent=4),
-            file_name=f"simulacao_{st.session_state.get('servico_atual', 'servico').replace(' ', '_')}.json",
-            mime="application/json"
-        )
-        st.divider()
         st.header("⚙️ Parâmetros Globais")
         st.selectbox("Com Custo Indireto?", ["Sim", "Não"], key="indireto")
         st.number_input("Valor da Hora Clínica (R$)", min_value=0.0, step=1.0, format="%.2f", key="valor_hora")
@@ -406,7 +424,7 @@ def render_ficha_tecnica():
         label_visibility="collapsed"
     )
 
-    if st.button("💾 Salvar Alterações deste Serviço na Nuvem", type="primary"):
+    if st.button("💾 Salvar Alterações DESTE SERVIÇO na Nuvem", type="primary"):
         st.session_state["db_servicos"][st.session_state["servico_atual"]] = {
             "tempo_min": st.session_state["tempo_min"],
             "maquinas": st.session_state["df_ficha_maquinas"].to_dict(orient="records"),
@@ -419,7 +437,7 @@ def render_ficha_tecnica():
             "preco_escolhido": st.session_state["preco_escolhido"]
         }
         salvar_estado_nuvem()
-        st.success("Sincronizado com o Supabase com sucesso!")
+        st.success("Salvo com sucesso na nuvem!")
 
     st.divider()
     col_esq, col_dir = st.columns([2, 1])
@@ -631,20 +649,11 @@ def render_ficha_tecnica():
 # MÓDULO 2: CUSTOS FIXOS
 # ==========================================
 def render_custos_fixos():
-    with st.sidebar:
-        st.header("💾 Salvar / Carregar Custos Fixos")
-        arquivo_upload = st.file_uploader("Carregar backup (.json) para a Nuvem", type=["json"], key="up_custos")
-        if arquivo_upload is not None:
-            try:
-                dados_salvos = json.load(arquivo_upload)
-                if "df_custos_categorias" in dados_salvos:
-                    st.session_state["df_custos_categorias"] = {k: pd.DataFrame(v) for k, v in dados_salvos["df_custos_categorias"].items()}
-                salvar_estado_nuvem()
-                st.success("Dados carregados e salvos na nuvem!")
-            except Exception: st.error("Erro ao ler o arquivo.")
-        st.divider()
-        dados_salvar = {"df_custos_categorias": {k: v.to_dict(orient="records") for k, v in st.session_state["df_custos_categorias"].items()}}
-        st.download_button("📥 Baixar Backup Local", data=json.dumps(dados_salvar, indent=4), file_name="custos_fixos.json", mime="application/json")
+    st.title("Gestão de Custos Fixos e Hora Clínica")
+    
+    if st.button("💾 Salvar Alterações de Custos na Nuvem", type="primary"):
+        salvar_estado_nuvem()
+        st.success("Custos sincronizados com a Nuvem com sucesso!")
 
     def renderizar_categoria_dinamica(titulo, chave):
         with st.expander(titulo, expanded=False):
@@ -687,7 +696,6 @@ def render_custos_fixos():
             st.markdown(f"**Total da Categoria:** R$ {total:,.2f}")
             return total
 
-    st.title("Gestão de Custos Fixos e Hora Clínica")
     st.subheader("⚙️ Gerenciar Categorias")
     
     tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
@@ -762,7 +770,7 @@ def render_custos_fixos():
             horas_diarias = st.number_input("Horas Diárias", value=8.0, step=0.5, format="%.1f")
             dias_semana = st.number_input("Dias na semana", value=5.0, step=0.5, format="%.1f")
         with col_p2:
-            qtd_salas = st.number_input("Qtd de Salas", value=4.0, step=1.0, format="%.1f")
+            qtd_salas = st.number_input("Qtd de Salas", value=14.0, step=1.0, format="%.1f")
 
         horas_semanais = horas_diarias * dias_semana
         horas_mensais = horas_semanais * 4.5
@@ -820,20 +828,12 @@ def render_custos_fixos():
 # MÓDULO 3: EQUIPAMENTOS
 # ==========================================
 def render_equipamentos():
-    with st.sidebar:
-        st.header("💾 Salvar / Carregar Equipamentos")
-        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_eq")
-        if arquivo_upload is not None:
-            try:
-                st.session_state["df_lista_equipamentos"] = pd.DataFrame(json.load(arquivo_upload)["df_lista_equipamentos"])
-                salvar_estado_nuvem()
-                st.success("Dados carregados e salvos na nuvem!")
-            except Exception: st.error("Erro ao ler o arquivo.")
-        st.divider()
-        dados_salvar = {"df_lista_equipamentos": st.session_state["df_lista_equipamentos"].to_dict(orient="records")}
-        st.download_button("📥 Baixar Backup Local", data=json.dumps(dados_salvar, indent=4), file_name="equipamentos.json", mime="application/json")
-
     st.title("Registro de Equipamentos")
+    
+    if st.button("💾 Salvar Alterações de Equip. na Nuvem", type="primary"):
+        salvar_estado_nuvem()
+        st.success("Equipamentos sincronizados com a Nuvem com sucesso!")
+
     st.subheader("⚙️ Gerenciar Equipamentos")
     
     tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
@@ -914,20 +914,12 @@ def render_equipamentos():
 # MÓDULO 4: INSUMOS
 # ==========================================
 def render_insumos():
-    with st.sidebar:
-        st.header("💾 Salvar / Carregar Insumos")
-        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_ins")
-        if arquivo_upload is not None:
-            try:
-                st.session_state["df_lista_insumos"] = pd.DataFrame(json.load(arquivo_upload)["df_lista_insumos"])
-                salvar_estado_nuvem()
-                st.success("Dados carregados e salvos na nuvem!")
-            except Exception: st.error("Erro ao ler o arquivo.")
-        st.divider()
-        dados_salvar = {"df_lista_insumos": st.session_state["df_lista_insumos"].to_dict(orient="records")}
-        st.download_button("📥 Baixar Backup Local", data=json.dumps(dados_salvar, indent=4), file_name="insumos.json", mime="application/json")
-
     st.title("Lista de Insumos e Materiais")
+    
+    if st.button("💾 Salvar Alterações de Insumos na Nuvem", type="primary"):
+        salvar_estado_nuvem()
+        st.success("Insumos sincronizados com a Nuvem com sucesso!")
+
     st.subheader("⚙️ Gerenciar Insumos")
     
     tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
@@ -982,20 +974,12 @@ def render_insumos():
 # MÓDULO 5: TAXAS
 # ==========================================
 def render_taxas():
-    with st.sidebar:
-        st.header("💾 Salvar / Carregar Taxas")
-        arquivo_upload = st.file_uploader("Carregar backup (.json) para Nuvem", type=["json"], key="up_taxas")
-        if arquivo_upload is not None:
-            try:
-                st.session_state["df_lista_taxas"] = pd.DataFrame(json.load(arquivo_upload)["df_lista_taxas"])
-                salvar_estado_nuvem()
-                st.success("Dados carregados e salvos na nuvem!")
-            except Exception: st.error("Erro ao ler o arquivo.")
-        st.divider()
-        dados_salvar = {"df_lista_taxas": st.session_state["df_lista_taxas"].to_dict(orient="records")}
-        st.download_button("📥 Baixar Backup Local", data=json.dumps(dados_salvar, indent=4), file_name="taxas.json", mime="application/json")
-
     st.title("Impostos e Taxas")
+    
+    if st.button("💾 Salvar Alterações de Taxas na Nuvem", type="primary"):
+        salvar_estado_nuvem()
+        st.success("Taxas sincronizadas com a Nuvem com sucesso!")
+
     st.subheader("⚙️ Gerenciar Taxas")
     
     tab_add, tab_ren, tab_del = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])

@@ -45,7 +45,9 @@ Data início = Março (Início)
  Login e senha pra cada cliente gerando cada arquivo para cada cliente
  Calculadora e salário?
 
- 
+
+Link do app:  https://fichatecnica.streamlit.app/
+
 Ideia supa_base  (08/04/2026)
 comando pra rodar:
 python -m streamlit run app.py
