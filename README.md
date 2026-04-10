@@ -55,3 +55,11 @@ python -m streamlit run app.py
 
 aba pra achar (Legacy anon, service_role API keys) é a que tem anon public
 aba pra achar (Data API)
+
+Comando básicos git:
+git add .
+git commit -m"teste"
+git push
+
+UX (Experiência design)
+dashboards numa aba só, barras nítidas de busca
