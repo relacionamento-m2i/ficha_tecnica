@@ -2,12 +2,20 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import io
+import unicodedata
+
+try:
+    from fpdf import FPDF
+except ImportError:
+    st.error("⚠️ A biblioteca 'fpdf2' não está instalada no ambiente do Streamlit.")
+    st.info("Abra o terminal e digite: pip install fpdf2")
+    st.stop()
 
 try:
     from supabase import create_client, Client
 except ImportError:
     st.error("⚠️ A biblioteca 'supabase' não está instalada no ambiente do Streamlit.")
-    st.info("Abra o terminal e digite: pipx inject streamlit supabase (ou pip install supabase)")
+    st.info("Abra o terminal e digite: pip install supabase")
     st.stop()
 
 try:
@@ -294,6 +302,64 @@ if "servico_atual" not in st.session_state:
     inicializar_estado_ficha()
 
 # ==========================================
+# GERAÇÃO DE PDF
+# ==========================================
+def gerar_pdf_ficha_tecnica(nome_servico, preco, custo_total, lucro, margem, impostos, taxa_cartao, df_maq, df_ins, df_outros):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    
+    # Cabeçalho
+    pdf.set_fill_color(112, 48, 160) # Cor roxa
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(0, 10, f" FICHA TECNICA: {nome_servico.upper()}", 0, 1, 'C', fill=True)
+    pdf.ln(5)
+    
+    # Resumo Financeiro
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 8, "1. RESUMO FINANCEIRO", 0, 1)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(50, 8, f"Preco de Venda:", 0, 0)
+    pdf.cell(0, 8, f"R$ {preco:,.2f}", 0, 1)
+    pdf.cell(50, 8, f"Custo Total:", 0, 0)
+    pdf.cell(0, 8, f"R$ {custo_total:,.2f}", 0, 1)
+    pdf.cell(50, 8, f"Deducoes (Imp/Taxa):", 0, 0)
+    pdf.cell(0, 8, f"R$ {(impostos + taxa_cartao):,.2f}", 0, 1)
+    pdf.cell(50, 8, f"Lucro Liquido:", 0, 0)
+    pdf.cell(0, 8, f"R$ {lucro:,.2f}  |  Margem: {margem*100:.1f}%", 0, 1)
+    pdf.ln(5)
+
+    # Função auxiliar para desenhar tabelas
+    def desenhar_tabela(titulo, df, colunas_mostrar):
+        if not df.empty:
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, titulo, 0, 1)
+            pdf.set_font("Arial", 'B', 10)
+            
+            largura_col = 190 / len(colunas_mostrar)
+            for col in colunas_mostrar:
+                pdf.cell(largura_col, 8, str(col), border=1)
+            pdf.ln()
+            
+            pdf.set_font("Arial", '', 10)
+            for _, row in df.iterrows():
+                for col in colunas_mostrar:
+                    texto = str(row[col])[:30] 
+                    pdf.cell(largura_col, 8, texto, border=1)
+                pdf.ln()
+            pdf.ln(5)
+
+    # Desenhar as tabelas de estrutura
+    desenhar_tabela("2. MAQUINAS E EQUIPAMENTOS", df_maq, ["nome", "custo"])
+    desenhar_tabela("3. MATERIAIS E INSUMOS", df_ins, ["Material", "QT", "Preço (R$)"])
+    if not df_outros.empty:
+        desenhar_tabela("4. OUTROS CUSTOS", df_outros, ["Tipo", "Valor (R$)"])
+
+    # CORREÇÃO APLICADA AQUI:
+    return bytes(pdf.output())
+
+# ==========================================
 # MENU LATERAL & ROTEAMENTO DE PÁGINAS
 # ==========================================
 with st.sidebar:    
@@ -492,11 +558,25 @@ def render_ficha_tecnica():
     ])
 
     with tab_dash:
-        st.markdown(f"<h4 style='color: {COR_CABECALHO};'>Fórmula de Cálculo</h4>", unsafe_allow_html=True)
-        st.info(f"**Custo Total (R$ {custo_total_servico:.2f})** = [ (Tempo em Horas) × Valor Hora Clínica ] + Equipamentos + Insumos + Repasses/Aluguéis + Outros Custos")
-
-        st.markdown(f"<h4 style='color: {COR_CABECALHO};'>Resumo da Ficha Técnica: {st.session_state.get('servico_atual', '')}</h4>", unsafe_allow_html=True)
+        # --- CABEÇALHO DO RESUMO INDIVIDUAL ---
+        c_title, c_btn = st.columns([3, 1])
+        c_title.markdown(f"<h4 style='color: {COR_CABECALHO};'>Resumo da Ficha: {st.session_state.get('servico_atual', '')}</h4>", unsafe_allow_html=True)
         
+        # VARIÁVEIS DE CÁLCULO
+        valor_imposto = preco_escolhido * (taxa_imposto_pct / 100)
+        valor_taxa_cartao = preco_escolhido * (taxa_cartao_pct / 100)
+
+        # BOTÃO GERAR PDF
+        with c_btn:
+            pdf_bytes = gerar_pdf_ficha_tecnica(
+                st.session_state.get('servico_atual', ''), preco_escolhido, custo_total_servico, lucro, pct_lucro, 
+                valor_imposto, valor_taxa_cartao, df_maq, df_ins, df_outros
+            )
+            st.download_button(label="📄 Baixar PDF da Ficha", data=pdf_bytes, file_name=f"Ficha_{st.session_state.get('servico_atual', '')}.pdf", mime="application/pdf", use_container_width=True)
+
+        st.info(f"**Fórmula do Custo (R$ {custo_total_servico:.2f})** = Tempo + Máquinas + Insumos + Repasses + Outros Custos")
+
+        # --- PRIMEIRA LINHA DE CARTÕES (Macro) ---
         kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
         kpi1.metric("Preço de Venda", f"R$ {preco_escolhido:,.2f}")
         kpi2.metric("Custo Total", f"R$ {custo_total_servico:,.2f}")
@@ -504,64 +584,79 @@ def render_ficha_tecnica():
         kpi4.metric("Lucro Líquido", f"R$ {lucro:,.2f}")
         kpi5.metric("Margem (%)", f"{pct_lucro*100:.1f}%")
 
-        with st.expander("📄 Ver Resumo Detalhado (Estrutura de Custos)"):
+        st.write("") # Espaçamento
+        
+        # --- SEGUNDA LINHA DE CARTÕES (Detalhamento) ---
+        sub_kpi1, sub_kpi2, sub_kpi3, sub_kpi4, sub_kpi5 = st.columns(5)
+        sub_kpi1.metric("Impostos", f"R$ {valor_imposto:,.2f}")
+        sub_kpi2.metric("Taxa Cartão", f"R$ {valor_taxa_cartao:,.2f}")
+        sub_kpi3.metric("Máquinas e Equip.", f"R$ {custo_maquinas:,.2f}")
+        sub_kpi4.metric("Materiais e Insumos", f"R$ {custo_insumos:,.2f}")
+        sub_kpi5.metric("Outros Custos", f"R$ {custo_outros:,.2f}")
+
+        with st.expander("📄 Ver Resumo Detalhado da Composição"):
             c_det1, c_det2 = st.columns(2)
-            c_det1.markdown(f"""
-            **1. Custos Diretos e Indiretos**
-            - Hora Clínica (Tempo Execução): R$ {custo_execucao:.2f}
-            - Insumos e Materiais: R$ {custo_insumos:.2f}
-            - Máquinas e Depreciação: R$ {custo_maquinas:.2f}
-            - Outros Custos (Equipe, Feriado): R$ {custo_outros:.2f}
-            - Aluguéis/Repasses Fixos: R$ {(custo_aluguel + repasse_fixo):.2f}
-            """)
-            c_det2.markdown(f"""
-            **2. Deduções (Impostos e Taxas)**
-            - Impostos ({st.session_state.get('tipo_imposto')} - {taxa_imposto_pct}%): R$ {(preco_escolhido * (taxa_imposto_pct/100)):.2f}
-            - Taxa Cartão ({cenario_atual} - {taxa_cartao_pct}%): R$ {(preco_escolhido * (taxa_cartao_pct/100)):.2f}
-            - Comissão ({taxa_comissao_pct}%): R$ {(preco_escolhido * (taxa_comissao_pct/100)):.2f}
-            """)
+            c_det1.markdown(f"**1. Custos Diretos e Indiretos**\n- Hora Clínica: R$ {custo_execucao:.2f}\n- Insumos: R$ {custo_insumos:.2f}\n- Máquinas: R$ {custo_maquinas:.2f}\n- Outros: R$ {custo_outros:.2f}\n- Repasses Fixos: R$ {(custo_aluguel + repasse_fixo):.2f}")
+            c_det2.markdown(f"**2. Deduções**\n- Impostos: R$ {valor_imposto:.2f}\n- Taxa Cartão: R$ {valor_taxa_cartao:.2f}\n- Comissão: R$ {(preco_escolhido * (taxa_comissao_pct/100)):.2f}")
 
         st.divider()
-        st.markdown(f"<h4 style='color: {COR_CABECALHO};'>📈 Comparativo de Serviços</h4>", unsafe_allow_html=True)
+
+        # ==========================================
+        # PAINEL COMPARATIVO AVANÇADO
+        # ==========================================
+        st.markdown(f"<h4 style='color: {COR_CABECALHO};'>📈 Comparativo de Portfólio</h4>", unsafe_allow_html=True)
         
         todas_opcoes_servicos = list(st.session_state["db_servicos"].keys())
-        servicos_selecionados = st.multiselect(
-            "Selecione os serviços que deseja comparar:", 
-            options=todas_opcoes_servicos, 
-            default=todas_opcoes_servicos
-        )
+        total_cadastrados = len(todas_opcoes_servicos)
+
+        # Controle de Filtros mais Nítido
+        st.markdown("**🎛️ Painel de Filtros:**")
+        col_f1, col_f2 = st.columns([4, 1])
+        
+        with col_f2:
+            st.write("") # alinhamento
+            selecionar_todos = st.toggle("Selecionar Todos", value=True)
+            
+        with col_f1:
+            padrao_selecao = todas_opcoes_servicos if selecionar_todos else []
+            servicos_selecionados = st.multiselect(
+                "Selecione os serviços que deseja colocar no gráfico:", 
+                options=todas_opcoes_servicos, 
+                default=padrao_selecao,
+                help="Clique no 'X' para remover um serviço, ou digite para buscar."
+            )
 
         if servicos_selecionados:
+            st.success(f"👁️ Exibindo dados de **{len(servicos_selecionados)}** de **{total_cadastrados}** serviços cadastrados.")
+            
             dados_comp = []
             valor_hora_global = st.session_state.get("valor_hora", 48.14)
             usa_indireto = st.session_state.get("indireto") == "Sim"
 
+            # Calcula a matemática para os serviços filtrados
             for serv_nome in servicos_selecionados:
                 dados_s = st.session_state["db_servicos"][serv_nome]
+                
+                # Custos
                 t_min = dados_s.get("tempo_min", 60.0)
                 c_exec = (t_min / 60) * valor_hora_global if usa_indireto else 0.0
-                
                 df_m = pd.DataFrame(dados_s.get("maquinas", []))
                 c_maq = pd.to_numeric(df_m["custo"], errors="coerce").fillna(0.0).sum() if not df_m.empty else 0.0
-                
                 df_i = pd.DataFrame(dados_s.get("insumos", []))
                 c_ins = (pd.to_numeric(df_i["QT"], errors="coerce").fillna(0.0) * pd.to_numeric(df_i["Preço (R$)"], errors="coerce").fillna(0.0)).sum() if not df_i.empty else 0.0
-                
                 df_o = pd.DataFrame(dados_s.get("outros_custos", []))
                 c_outros_s = pd.to_numeric(df_o["Valor (R$)"], errors="coerce").fillna(0.0).sum() if not df_o.empty else 0.0
-
                 c_alu = dados_s.get("custo_aluguel", 0.0)
                 c_rep = dados_s.get("repasse_fixo", 0.0)
-                preco = dados_s.get("preco_escolhido", 0.0)
                 
+                # Precificação
+                preco = dados_s.get("preco_escolhido", 0.0)
                 taxas_s = dados_s.get("taxas", {})
                 t_com = taxas_s.get("comissao", 0.0)
-                
                 cenario_s = taxas_s.get("cenario_cartao", "Crédito 1x")
                 t_car = 0.0
                 if not df_taxas_globais.empty and cenario_s in df_taxas_globais["Taxa"].values:
                     t_car = float(df_taxas_globais[df_taxas_globais["Taxa"] == cenario_s]["Porcentagem (%)"].iloc[0])
-
                 t_imp = taxas_s.get("aliquota_imposto", 6.0)
                 
                 c_tot = c_exec + c_maq + c_ins + c_alu + c_rep + c_outros_s
@@ -570,38 +665,50 @@ def render_ficha_tecnica():
                 margem_s = (lucro_s / preco) if preco > 0 else 0.0
                 
                 dados_comp.append({
-                    "Serviço": serv_nome,
-                    "Preço (R$)": preco,
-                    "Custo Total (R$)": c_tot,
-                    "Lucro Líquido (R$)": lucro_s,
-                    "Margem": margem_s
+                    "Serviço": serv_nome, "Preço (R$)": preco, "Custo Total (R$)": c_tot, 
+                    "Lucro Líquido (R$)": lucro_s, "Margem": margem_s
                 })
                 
             df_comp = pd.DataFrame(dados_comp)
+            df_comp = df_comp.sort_values(by="Lucro Líquido (R$)", ascending=True) # Maior no topo
+            
+            # --- INDICADORES DA SELEÇÃO ATUAL ---
+            st.markdown("##### 💡 Insights da Seleção:")
+            col_in1, col_in2, col_in3 = st.columns(3)
+            servico_top = df_comp.iloc[-1] # Como está ordenado crescente, o último é o maior
+            lucro_medio = df_comp["Lucro Líquido (R$)"].mean()
+            
+            col_in1.metric("Serviço Mais Rentável", servico_top["Serviço"])
+            col_in2.metric("Pico de Lucro", f"R$ {servico_top['Lucro Líquido (R$)']:,.2f}")
+            col_in3.metric("Média de Lucro (Seleção)", f"R$ {lucro_medio:,.2f}")
+            
+            st.write("")
+
+            # PLOTAGEM DO GRÁFICO
             df_melted = df_comp.melt(id_vars=["Serviço"], value_vars=["Preço (R$)", "Custo Total (R$)", "Lucro Líquido (R$)"], var_name="Métrica", value_name="Valor")
-            
             fig_comp = px.bar(
-                df_melted, x="Serviço", y="Valor", color="Métrica", 
-                barmode="group", color_discrete_sequence=['#3498db', '#e74c3c', '#2ecc71']
+                df_melted, y="Serviço", x="Valor", color="Métrica", 
+                barmode="group", orientation='h', color_discrete_sequence=['#3498db', '#e74c3c', '#2ecc71']
             )
-            fig_comp.update_traces(texttemplate='R$ %{y:,.0f}', textposition='outside', textfont_size=11)
-            
-            max_y = df_melted["Valor"].max()
+            fig_comp.update_traces(texttemplate='R$ %{x:,.0f}', textposition='outside', textfont_size=11)
+            max_val = df_melted["Valor"].max()
+            altura_dinamica = max(400, len(df_comp) * 85) 
             fig_comp.update_layout(
-                plot_bgcolor="rgba(0,0,0,0)", yaxis_title="Reais (R$)", xaxis_title="",
-                margin=dict(t=40, b=10), legend_title="Indicadores:",
+                plot_bgcolor="rgba(0,0,0,0)", xaxis_title="Reais (R$)", yaxis_title="",
+                margin=dict(t=10, b=10, l=150), legend_title="",
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                yaxis=dict(range=[0, max_y * 1.25])
+                xaxis=dict(range=[0, max_val * 1.25]), height=altura_dinamica
             )
             st.plotly_chart(fig_comp, use_container_width=True)
             
             with st.expander("📄 Ver Tabela de Comparação Completa"):
-                st.dataframe(df_comp.style.format({
+                df_exibicao = df_comp.sort_values(by="Lucro Líquido (R$)", ascending=False)
+                st.dataframe(df_exibicao.style.format({
                     "Preço (R$)": "R$ {:,.2f}", "Custo Total (R$)": "R$ {:,.2f}", 
                     "Lucro Líquido (R$)": "R$ {:,.2f}", "Margem": "{:.1%}"
                 }), use_container_width=True, hide_index=True)
         else:
-            st.info("Selecione pelo menos um serviço no filtro acima para visualizar o comparativo.")
+            st.warning("⚠️ O gráfico está vazio porque você desmarcou todos os serviços. Selecione ao menos um acima.")
 
     with tab_custos:
         st.subheader("Tempo e Repasses")
