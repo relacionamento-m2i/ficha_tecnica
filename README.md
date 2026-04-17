@@ -51,6 +51,8 @@ Link do app:  https://fichatecnica.streamlit.app/
 Ideia supa_base  (08/04/2026)
 comando pra rodar:
 python -m streamlit run app.py
+python -m streamlit run app1.py
+
 
 
 aba pra achar (Legacy anon, service_role API keys) é a que tem anon public
