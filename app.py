@@ -394,7 +394,7 @@ with st.sidebar:
             "3. Registro de Equipamentos",
             "4. Insumos e Materiais",
             "5. Impostos e Taxas",
-            "6. Protocolos (Jornadas) 🚀"
+            "6. Protocolos (Jornadas)"
         ]
     )
     st.divider()
@@ -1701,4 +1701,4 @@ elif modulo_selecionado == "2. Custos Fixos e Hora Clínica": render_custos_fixo
 elif modulo_selecionado == "3. Registro de Equipamentos": render_equipamentos()
 elif modulo_selecionado == "4. Insumos e Materiais": render_insumos()
 elif modulo_selecionado == "5. Impostos e Taxas": render_taxas()
-elif modulo_selecionado == "6. Protocolos (Jornadas) 🚀": render_protocolos()
+elif modulo_selecionado == "6. Protocolos (Jornadas)": render_protocolos()
