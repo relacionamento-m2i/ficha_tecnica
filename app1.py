@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px
 import io
 import unicodedata
+import zipfile
+import os
 
 try:
     from fpdf import FPDF
@@ -31,10 +33,15 @@ except ImportError:
 # ==========================================
 st.set_page_config(page_title="Portal de Precificação", page_icon="🔒", layout="wide", initial_sidebar_state="expanded", menu_items={'Get Help': None, 'Report a bug': None, 'About': None})
 
-COR_CABECALHO = "#7030A0"
-COR_FUNDO_CLARO = "#E6E0EC"
+# NOVO PADRÃO DE CORES M2i
+COR_CABECALHO = "#159EAC"
+COR_FUNDO_CLARO = "#E0F2F4"
 COR_TEXTO_BRANCO = "#FFFFFF"
-PALETA_GRAFICOS = ['#7030A0', '#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c']
+PALETA_GRAFICOS = ['#159EAC', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#9b59b6']
+
+# CONFIGURAÇÃO DA LOGO
+CAMINHO_LOGO = r"C:\Users\user\Downloads\Fichas Técnicas Código\logo.png"
+
 
 st.markdown(f"""
     <style>
@@ -48,12 +55,12 @@ st.markdown(f"""
     
     /* === Estilos da Tela de Login === */
     div[data-testid="stFormSubmitButton"] > button {{ background-color: {COR_CABECALHO} !important; color: white !important; border-radius: 8px !important; font-weight: bold !important; border: none !important; padding: 10px !important; }}
-    div[data-testid="stFormSubmitButton"] > button:hover {{ background-color: #5a2680 !important; box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important; }}
+    div[data-testid="stFormSubmitButton"] > button:hover {{ background-color: #0F7A85 !important; box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important; }}
     
     /* === Estilos dos KPIs (Cartões) === */
     div[data-testid="stMetric"] {{
         background-color: #FFFFFF;
-        border-left: 5px solid #7030A0;
+        border-left: 5px solid {COR_CABECALHO};
         padding: 15px 20px;
         border-radius: 8px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.05);
@@ -73,13 +80,13 @@ st.markdown(f"""
     div[data-baseweb="input"] > div:focus-within, 
     div[data-baseweb="select"] > div:focus-within {{
         border: 2px solid {COR_CABECALHO} !important;
-        box-shadow: 0 0 5px rgba(112, 48, 160, 0.2) !important;
+        box-shadow: 0 0 5px rgba(21, 158, 172, 0.2) !important;
     }}
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. SISTEMA DE LOGIN (EXATAMENTE COMO ESTAVA)
+# 2. SISTEMA DE LOGIN
 # ==========================================
 try:
     SENHAS = st.secrets["senhas"]
@@ -93,16 +100,19 @@ except KeyError:
 if "usuario_logado" not in st.session_state:
     st.session_state["usuario_logado"] = None
 
-# A "Barreira" - Se não estiver logado, mostra a tela e para a execução.
 if st.session_state["usuario_logado"] is None:
     st.write("<br><br><br>", unsafe_allow_html=True)
     col_esq, col_centro, col_dir = st.columns([1.5, 1.2, 1.5])
     
     with col_centro:
+        # Tenta exibir a logo centralizada no login
+        if os.path.exists(CAMINHO_LOGO):
+            st.image(CAMINHO_LOGO, use_container_width=False, width=250)
+            
         st.markdown(f"""
-        <div style="background-color: {COR_CABECALHO}; padding: 25px; border-radius: 10px 10px 0 0; text-align: center;">
+        <div style="background-color: {COR_CABECALHO}; padding: 25px; border-radius: 10px 10px 0 0; text-align: center; margin-top: 15px;">
             <h2 style="margin: 0; color: white;">SISTEMA DE PRECIFICAÇÃO</h2>
-            <p style="color: #E6E0EC; margin-top: 5px; margin-bottom: 0;">Faça login para acessar seu painel</p>
+            <p style="color: {COR_FUNDO_CLARO}; margin-top: 5px; margin-bottom: 0;">Faça login para acessar seu painel</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -121,9 +131,6 @@ if st.session_state["usuario_logado"] is None:
                     st.error("❌ Usuário ou senha incorretos.")
     st.stop()
 
-# ==========================================
-# SE O CÓDIGO CHEGOU AQUI, O USUÁRIO ESTÁ LOGADO!
-# ==========================================
 ID_CLIENTE = st.session_state["usuario_logado"]
 
 # ==========================================
@@ -147,7 +154,8 @@ def salvar_estado_nuvem():
             "df_lista_equipamentos": st.session_state.get("df_lista_equipamentos", pd.DataFrame()).to_dict(orient="records"),
             "df_lista_insumos": st.session_state.get("df_lista_insumos", pd.DataFrame()).to_dict(orient="records"),
             "df_lista_taxas": st.session_state.get("df_lista_taxas", pd.DataFrame()).to_dict(orient="records"),
-            "df_custos_categorias": {k: v.to_dict(orient="records") for k, v in st.session_state.get("df_custos_categorias", {}).items()}
+            "df_custos_categorias": {k: v.to_dict(orient="records") for k, v in st.session_state.get("df_custos_categorias", {}).items()},
+            "protocolos": st.session_state.get("protocolos_db", [])
         }
         try:
             supabase.table("app_state").upsert({"cliente_id": ID_CLIENTE, "state_data": dados}).execute()
@@ -181,6 +189,8 @@ def carregar_estado_nuvem():
 
                 custos_raw = dados.get("df_custos_categorias", {})
                 st.session_state["df_custos_categorias"] = {k: pd.DataFrame(v) for k, v in custos_raw.items()}
+                
+                st.session_state["protocolos_db"] = dados.get("protocolos", [])
                 return True
         except Exception as e:
             st.error(f"Erro ao carregar dados da nuvem: {e}")
@@ -196,7 +206,6 @@ def inicializar_padroes_caso_vazio():
     st.session_state["df_lista_insumos"] = pd.DataFrame(columns=["Material", "qt", "valor"])
     st.session_state["df_lista_taxas"] = pd.DataFrame(columns=["Taxa", "Porcentagem (%)"])
     
-    # Molde padrão de Custos Fixos (Estrutura completa, valores zerados)
     st.session_state["df_custos_categorias"] = {
         "1. Despesa com pessoal": pd.DataFrame([
             {"ÍTEM": "Total da folha de pagamento clt (com 13º)", "MENSAL (R$)": 0.0},
@@ -242,6 +251,7 @@ def inicializar_padroes_caso_vazio():
             {"ÍTEM": "Seguros do estabelecimento", "MENSAL (R$)": 0.0}
         ])
     }
+    st.session_state["protocolos_db"] = []
     salvar_estado_nuvem()
 
 if "dados_carregados" not in st.session_state or st.session_state["dados_carregados"] == False:
@@ -260,6 +270,7 @@ def carregar_servico_para_estado(nome_servico):
     st.session_state["servico_atual"] = nome_servico
     st.session_state["tempo_min"] = float(dados.get("tempo_min", 60.0))
     st.session_state["repasse_fixo"] = float(dados.get("repasse_fixo", 0.0))
+    st.session_state["repasse_percentual"] = float(dados.get("repasse_percentual", 0.0))
     st.session_state["custo_aluguel"] = float(dados.get("custo_aluguel", 0.0))
     
     st.session_state["df_ficha_maquinas"] = pd.DataFrame(dados.get("maquinas", [])) if dados.get("maquinas") else df_maquinas_padrao()
@@ -282,6 +293,7 @@ def inicializar_estado_ficha():
         st.session_state.setdefault("servico_atual", "")
         st.session_state.setdefault("tempo_min", 60.0)
         st.session_state.setdefault("repasse_fixo", 0.0)
+        st.session_state.setdefault("repasse_percentual", 0.0)
         st.session_state.setdefault("custo_aluguel", 0.0)
         st.session_state.setdefault("df_ficha_maquinas", df_maquinas_padrao())
         st.session_state.setdefault("df_ficha_insumos", df_insumos_padrao())
@@ -304,18 +316,16 @@ if "servico_atual" not in st.session_state:
 # ==========================================
 # GERAÇÃO DE PDF
 # ==========================================
-def gerar_pdf_ficha_tecnica(nome_servico, preco, custo_total, lucro, margem, impostos, taxa_cartao, df_maq, df_ins, df_outros):
+def gerar_pdf_ficha_tecnica(nome_servico, preco, custo_total, lucro, margem, impostos, taxa_cartao, comissao, repasse_med, df_maq, df_ins, df_outros):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
     
-    # Cabeçalho
-    pdf.set_fill_color(112, 48, 160) # Cor roxa
+    pdf.set_fill_color(21, 158, 172)
     pdf.set_text_color(255, 255, 255)
     pdf.cell(0, 10, f" FICHA TECNICA: {nome_servico.upper()}", 0, 1, 'C', fill=True)
     pdf.ln(5)
     
-    # Resumo Financeiro
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 8, "1. RESUMO FINANCEIRO", 0, 1)
@@ -324,13 +334,14 @@ def gerar_pdf_ficha_tecnica(nome_servico, preco, custo_total, lucro, margem, imp
     pdf.cell(0, 8, f"R$ {preco:,.2f}", 0, 1)
     pdf.cell(50, 8, f"Custo Total:", 0, 0)
     pdf.cell(0, 8, f"R$ {custo_total:,.2f}", 0, 1)
-    pdf.cell(50, 8, f"Deducoes (Imp/Taxa):", 0, 0)
-    pdf.cell(0, 8, f"R$ {(impostos + taxa_cartao):,.2f}", 0, 1)
+    pdf.cell(50, 8, f"Deducoes (Imp/Tx/Com):", 0, 0)
+    pdf.cell(0, 8, f"R$ {(impostos + taxa_cartao + comissao):,.2f}", 0, 1)
+    pdf.cell(50, 8, f"Repasse Medico:", 0, 0)
+    pdf.cell(0, 8, f"R$ {repasse_med:,.2f}", 0, 1)
     pdf.cell(50, 8, f"Lucro Liquido:", 0, 0)
     pdf.cell(0, 8, f"R$ {lucro:,.2f}  |  Margem: {margem*100:.1f}%", 0, 1)
     pdf.ln(5)
 
-    # Função auxiliar para desenhar tabelas
     def desenhar_tabela(titulo, df, colunas_mostrar):
         if not df.empty:
             pdf.set_font("Arial", 'B', 12)
@@ -350,19 +361,23 @@ def gerar_pdf_ficha_tecnica(nome_servico, preco, custo_total, lucro, margem, imp
                 pdf.ln()
             pdf.ln(5)
 
-    # Desenhar as tabelas de estrutura
     desenhar_tabela("2. MAQUINAS E EQUIPAMENTOS", df_maq, ["nome", "custo"])
     desenhar_tabela("3. MATERIAIS E INSUMOS", df_ins, ["Material", "QT", "Preço (R$)"])
     if not df_outros.empty:
         desenhar_tabela("4. OUTROS CUSTOS", df_outros, ["Tipo", "Valor (R$)"])
 
-    # CORREÇÃO APLICADA AQUI:
     return bytes(pdf.output())
 
 # ==========================================
 # MENU LATERAL & ROTEAMENTO DE PÁGINAS
 # ==========================================
 with st.sidebar:    
+    
+    # ADICIONE ESTAS 3 LINHAS AQUI (Controlando o tamanho com o width)
+    if os.path.exists(CAMINHO_LOGO):
+        st.image(CAMINHO_LOGO, width=220) # Aumente ou diminua este número à vontade
+        st.write("") # Apenas para dar um respiro antes do texto abaixo
+    
     st.markdown(f"👤 Logado como: **{ID_CLIENTE}**")
     if st.button("🚪 Sair (Logout)", use_container_width=True):
         st.session_state.clear() 
@@ -399,12 +414,7 @@ def cabecalho_padrao(titulo):
 
 def render_onboarding():
     cabecalho_padrao("🚀 BEM-VINDO AO SEU PORTAL DE PRECIFICAÇÃO")
-    
-    st.markdown("""
-    Este painel foi criado para centralizar sua inteligência de preços. 
-    Assista aos tutoriais abaixo para configurar sua plataforma corretamente.
-    """)
-    
+    st.markdown("Este painel foi criado para centralizar sua inteligência de preços. Assista aos tutoriais abaixo para configurar sua plataforma corretamente.")
     st.subheader("📺 Tutoriais em Vídeo")
     with st.expander("▶️ Como configurar os Custos Fixos"):
         st.info("Link: https://youtu.be/DXnuXyFi3V8")
@@ -425,14 +435,12 @@ def render_ficha_tecnica():
     lista_nomes_servicos = list(st.session_state["db_servicos"].keys())
     if not lista_nomes_servicos:
         st.warning("Nenhum serviço cadastrado. Vá na aba 'Gerenciar Serviços' e crie um novo.")
-        
-        # UI Mínima para criar o primeiro serviço se estiver vazio
         with st.form("form_primeiro_servico"):
             n_nome = st.text_input("Criar Primeiro Serviço:")
             if st.form_submit_button("Criar"):
                 if n_nome:
                     st.session_state["db_servicos"][n_nome] = {
-                        "tempo_min": 60.0, "maquinas": [], "repasse_fixo": 0.0, "custo_aluguel": 0.0, "insumos": [], "outros_custos": [],
+                        "tempo_min": 60.0, "maquinas": [], "repasse_fixo": 0.0, "repasse_percentual": 0.0, "custo_aluguel": 0.0, "insumos": [], "outros_custos": [],
                         "taxas": {"comissao": 0.0, "cenario_cartao": "Crédito 1x", "tipo_imposto": "Simples Nacional", "aliquota_imposto": 6.0},
                         "preco_escolhido": 0.0
                     }
@@ -460,6 +468,7 @@ def render_ficha_tecnica():
                 "tempo_min": st.session_state["tempo_min"],
                 "maquinas": st.session_state.get("df_ficha_maquinas", df_maquinas_padrao()).to_dict(orient="records"),
                 "repasse_fixo": st.session_state["repasse_fixo"],
+                "repasse_percentual": st.session_state.get("repasse_percentual", 0.0),
                 "custo_aluguel": st.session_state["custo_aluguel"],
                 "insumos": st.session_state.get("df_ficha_insumos", df_insumos_padrao()).to_dict(orient="records"),
                 "outros_custos": st.session_state.get("df_ficha_outros_custos", df_outros_custos_padrao()).to_dict(orient="records"),
@@ -476,6 +485,9 @@ def render_ficha_tecnica():
 
     st.write("")
     
+    # -------------------------------
+    # MATEMÁTICA E VARIÁVEIS
+    # -------------------------------
     tempo_min = st.session_state.get("tempo_min", 60.0)
     valor_hora = st.session_state.get("valor_hora", 48.14)
     custo_execucao = (tempo_min / 60) * valor_hora if st.session_state.get("indireto") == "Sim" else 0.0
@@ -483,8 +495,11 @@ def render_ficha_tecnica():
     df_maq = st.session_state.get("df_ficha_maquinas", df_maquinas_padrao())
     custo_maquinas = pd.to_numeric(df_maq["custo"], errors="coerce").fillna(0.0).sum() if not df_maq.empty else 0.0
     
-    custo_aluguel = st.session_state.get("custo_aluguel", 0.0)
+    custo_aluguel_hora = st.session_state.get("custo_aluguel", 0.0)
+    custo_aluguel_calculado = custo_aluguel_hora * (tempo_min / 60)
+    
     repasse_fixo = st.session_state.get("repasse_fixo", 0.0)
+    repasse_percentual = st.session_state.get("repasse_percentual", 0.0)
     
     df_ins = st.session_state.get("df_ficha_insumos", df_insumos_padrao())
     custo_insumos = (pd.to_numeric(df_ins["QT"], errors="coerce").fillna(0.0) * pd.to_numeric(df_ins["Preço (R$)"], errors="coerce").fillna(0.0)).sum() if not df_ins.empty else 0.0
@@ -492,7 +507,7 @@ def render_ficha_tecnica():
     df_outros = st.session_state.get("df_ficha_outros_custos", df_outros_custos_padrao())
     custo_outros = pd.to_numeric(df_outros["Valor (R$)"], errors="coerce").fillna(0.0).sum() if not df_outros.empty else 0.0
     
-    custo_total_servico = custo_execucao + custo_maquinas + custo_aluguel + repasse_fixo + custo_insumos + custo_outros
+    custo_total_servico = custo_execucao + custo_maquinas + custo_aluguel_calculado + repasse_fixo + custo_insumos + custo_outros
     
     df_taxas_globais = st.session_state.get("df_lista_taxas", pd.DataFrame())
     cenario_atual = st.session_state.get("cenario_cartao", "Crédito 1x")
@@ -504,16 +519,26 @@ def render_ficha_tecnica():
     taxa_imposto_pct = st.session_state.get("aliquota_imposto", 6.0)
     preco_escolhido = st.session_state.get("preco_escolhido", 0.0)
     
-    liquido = preco_escolhido - (preco_escolhido * (taxa_comissao_pct/100)) - (preco_escolhido * (taxa_cartao_pct/100)) - (preco_escolhido * (taxa_imposto_pct/100))
-    lucro = liquido - custo_total_servico
+    valor_imposto = preco_escolhido * (taxa_imposto_pct / 100)
+    valor_taxa_cartao = preco_escolhido * (taxa_cartao_pct / 100)
+    valor_comissao = preco_escolhido * (taxa_comissao_pct / 100)
+    
+    resultado_liquido = preco_escolhido - valor_imposto - valor_taxa_cartao - valor_comissao
+    valor_repasse_medico = resultado_liquido * (repasse_percentual / 100)
+    
+    lucro = resultado_liquido - valor_repasse_medico - custo_total_servico
     pct_lucro = (lucro / preco_escolhido) if preco_escolhido > 0 else 0.0
-    total_impostos_taxas = preco_escolhido - liquido
+    total_impostos_taxas = valor_imposto + valor_taxa_cartao + valor_comissao
+
+    taxas_percentual_total = (taxa_comissao_pct + taxa_imposto_pct + taxa_cartao_pct) / 100
+    divisor_break_even = (1 - taxas_percentual_total) * (1 - (repasse_percentual / 100))
+    preco_sugerido_break_even = custo_total_servico / divisor_break_even if divisor_break_even > 0 else 0.0
 
     def cb_criar_servico():
         nome = st.session_state.get("input_novo_nome")
         if nome and nome not in st.session_state["db_servicos"]:
             st.session_state["db_servicos"][nome] = {
-                "tempo_min": 60.0, "maquinas": [], "repasse_fixo": 0.0, "custo_aluguel": 0.0, "insumos": [], "outros_custos": [],
+                "tempo_min": 60.0, "maquinas": [], "repasse_fixo": 0.0, "repasse_percentual": 0.0, "custo_aluguel": 0.0, "insumos": [], "outros_custos": [],
                 "taxas": {"comissao": 0.0, "cenario_cartao": "Crédito 1x", "tipo_imposto": "Simples Nacional", "aliquota_imposto": 6.0},
                 "preco_escolhido": 0.0
             }
@@ -558,46 +583,59 @@ def render_ficha_tecnica():
     ])
 
     with tab_dash:
-        # --- CABEÇALHO DO RESUMO INDIVIDUAL ---
         c_title, c_btn = st.columns([3, 1])
         c_title.markdown(f"<h4 style='color: {COR_CABECALHO};'>Resumo da Ficha: {st.session_state.get('servico_atual', '')}</h4>", unsafe_allow_html=True)
         
-        # VARIÁVEIS DE CÁLCULO
-        valor_imposto = preco_escolhido * (taxa_imposto_pct / 100)
-        valor_taxa_cartao = preco_escolhido * (taxa_cartao_pct / 100)
-
-        # BOTÃO GERAR PDF
         with c_btn:
-            pdf_bytes = gerar_pdf_ficha_tecnica(
+            pdf_bytes_unico = gerar_pdf_ficha_tecnica(
                 st.session_state.get('servico_atual', ''), preco_escolhido, custo_total_servico, lucro, pct_lucro, 
-                valor_imposto, valor_taxa_cartao, df_maq, df_ins, df_outros
+                valor_imposto, valor_taxa_cartao, valor_comissao, valor_repasse_medico, df_maq, df_ins, df_outros
             )
-            st.download_button(label="📄 Baixar PDF da Ficha", data=pdf_bytes, file_name=f"Ficha_{st.session_state.get('servico_atual', '')}.pdf", mime="application/pdf", use_container_width=True)
+            st.download_button(label="📄 Baixar PDF da Ficha", data=pdf_bytes_unico, file_name=f"Ficha_{st.session_state.get('servico_atual', '')}.pdf", mime="application/pdf", use_container_width=True)
 
-        st.info(f"**Fórmula do Custo (R$ {custo_total_servico:.2f})** = Tempo + Máquinas + Insumos + Repasses + Outros Custos")
-
-        # --- PRIMEIRA LINHA DE CARTÕES (Macro) ---
-        kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-        kpi1.metric("Preço de Venda", f"R$ {preco_escolhido:,.2f}")
-        kpi2.metric("Custo Total", f"R$ {custo_total_servico:,.2f}")
-        kpi3.metric("Taxas/Impostos", f"R$ {total_impostos_taxas:,.2f}")
-        kpi4.metric("Lucro Líquido", f"R$ {lucro:,.2f}")
-        kpi5.metric("Margem (%)", f"{pct_lucro*100:.1f}%")
-
-        st.write("") # Espaçamento
+        st.write("") 
         
-        # --- SEGUNDA LINHA DE CARTÕES (Detalhamento) ---
-        sub_kpi1, sub_kpi2, sub_kpi3, sub_kpi4, sub_kpi5 = st.columns(5)
-        sub_kpi1.metric("Impostos", f"R$ {valor_imposto:,.2f}")
-        sub_kpi2.metric("Taxa Cartão", f"R$ {valor_taxa_cartao:,.2f}")
-        sub_kpi3.metric("Máquinas e Equip.", f"R$ {custo_maquinas:,.2f}")
-        sub_kpi4.metric("Materiais e Insumos", f"R$ {custo_insumos:,.2f}")
-        sub_kpi5.metric("Outros Custos", f"R$ {custo_outros:,.2f}")
+        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+        kpi1.metric("1. Preço de Venda", f"R$ {preco_escolhido:,.2f}")
+        kpi2.metric("2. Deduções (Impostos/Taxas)", f"R$ {total_impostos_taxas:,.2f}")
+        kpi3.metric("3. Resultado Líquido", f"R$ {resultado_liquido:,.2f}", help="O que entra no caixa após as taxas de venda.")
+        kpi4.metric("4. Repasse Médico", f"R$ {valor_repasse_medico:,.2f}")
 
-        with st.expander("📄 Ver Resumo Detalhado da Composição"):
-            c_det1, c_det2 = st.columns(2)
-            c_det1.markdown(f"**1. Custos Diretos e Indiretos**\n- Hora Clínica: R$ {custo_execucao:.2f}\n- Insumos: R$ {custo_insumos:.2f}\n- Máquinas: R$ {custo_maquinas:.2f}\n- Outros: R$ {custo_outros:.2f}\n- Repasses Fixos: R$ {(custo_aluguel + repasse_fixo):.2f}")
-            c_det2.markdown(f"**2. Deduções**\n- Impostos: R$ {valor_imposto:.2f}\n- Taxa Cartão: R$ {valor_taxa_cartao:.2f}\n- Comissão: R$ {(preco_escolhido * (taxa_comissao_pct/100)):.2f}")
+        st.write("") 
+        
+        sub_kpi1, sub_kpi2, sub_kpi3, sub_kpi4 = st.columns(4)
+        sub_kpi1.metric("5. Custo Operacional", f"R$ {custo_total_servico:,.2f}", help="Soma de hora clínica, máquinas, insumos, aluguéis e repasses fixos.")
+        sub_kpi2.metric("6. Lucro Líquido", f"R$ {lucro:,.2f}")
+        sub_kpi3.metric("7. Margem (%)", f"{pct_lucro*100:.1f}%")
+        sub_kpi4.metric("8. Preço Sugerido", f"R$ {preco_sugerido_break_even:,.2f}", help="Ponto de Equilíbrio: Preço exato para ter Lucro Zero.")
+
+        st.write("") 
+
+        with st.expander("📝 Entenda como cada valor foi calculado (Memorial de Cálculo)", expanded=True):
+            st.markdown("### Memória de Cálculo")
+            st.markdown("Acompanhe o caminho do dinheiro, do faturamento bruto até o lucro final:")
+            
+            c_mem1, c_mem2 = st.columns(2)
+            with c_mem1:
+                st.write("**1. Deduções sobre o Preço Bruto:**")
+                st.latex(rf"Impostos ({taxa_imposto_pct}\%) = {valor_imposto:.2f}")
+                st.latex(rf"Taxa\ Cartão ({taxa_cartao_pct}\%) = {valor_taxa_cartao:.2f}")
+                st.latex(rf"Comissão ({taxa_comissao_pct}\%) = {valor_comissao:.2f}")
+                # CAIXA AZUL REMOVIDA AQUI: st.info para st.markdown
+                st.markdown(f"**Resultado Líquido:** R$ {resultado_liquido:.2f} (O que sobra após taxas de venda)")
+
+            with c_mem2:
+                st.write("**2. Divisão do Resultado Líquido:**")
+                st.latex(rf"Repasse\ ao\ Médico ({repasse_percentual}\%) = {valor_repasse_medico:.2f}")
+                st.latex(rf"Custo\ Operacional = {custo_total_servico:.2f}")
+                # CAIXA VERDE REMOVIDA AQUI: st.success para st.markdown
+                st.markdown(f"**Lucro Final:** R$ {lucro:.2f} (O que sobra no caixa da clínica)")
+            
+            st.markdown("---")
+            st.write("**Fórmulas de Eficiência Financeira:**")
+            st.latex(r"Margem\ (\%) = \left( \frac{Lucro\ Final}{Preço\ de\ Venda} \right) \times 100")
+            st.latex(r"Preço\ Sugerido = \frac{Custo\ Operacional}{(1 - Taxas\%) \times (1 - Repasse\%)}")
+            st.caption("💡 O **Preço Sugerido** (Ponto de Equilíbrio) faz o caminho inverso para descobrir quanto você precisa cobrar para cobrir todos os custos e pagar o médico, ficando com lucro zero no final.")
 
         st.divider()
 
@@ -609,12 +647,11 @@ def render_ficha_tecnica():
         todas_opcoes_servicos = list(st.session_state["db_servicos"].keys())
         total_cadastrados = len(todas_opcoes_servicos)
 
-        # Controle de Filtros mais Nítido
-        st.markdown("**🎛️ Painel de Filtros:**")
+        st.markdown("**🎛️ Painel de Filtros do Gráfico:**")
         col_f1, col_f2 = st.columns([4, 1])
         
         with col_f2:
-            st.write("") # alinhamento
+            st.write("")
             selecionar_todos = st.toggle("Selecionar Todos", value=True)
             
         with col_f1:
@@ -625,57 +662,96 @@ def render_ficha_tecnica():
                 default=padrao_selecao,
                 help="Clique no 'X' para remover um serviço, ou digite para buscar."
             )
+            
+        metricas_opcoes = [
+            "Preço de Venda (R$)", "Preço Sugerido (R$)", "Custo Total (R$)", "Lucro Líquido (R$)", 
+            "Taxas/Impostos Totais (R$)", "Impostos (R$)", "Taxa Cartão (R$)", "Comissão (R$)",
+            "Repasse Médico (R$)", "Hora Clínica (R$)", "Máquinas e Equip. (R$)", "Materiais e Insumos (R$)", 
+            "Outros Custos (R$)", "Aluguel (R$)", "Repasse Fixo (R$)"
+        ]
+        
+        metricas_selecionadas = st.multiselect(
+            "Selecione os indicadores que deseja visualizar nas barras:",
+            options=metricas_opcoes,
+            default=["Preço de Venda (R$)", "Custo Total (R$)", "Lucro Líquido (R$)"]
+        )
 
-        if servicos_selecionados:
-            st.success(f"👁️ Exibindo dados de **{len(servicos_selecionados)}** de **{total_cadastrados}** serviços cadastrados.")
+        if servicos_selecionados and metricas_selecionadas:
+            # CAIXA VERDE REMOVIDA AQUI: st.success para st.write
+            st.write(f"👁️ Exibindo dados de **{len(servicos_selecionados)}** de **{total_cadastrados}** serviços cadastrados.")
             
             dados_comp = []
             valor_hora_global = st.session_state.get("valor_hora", 48.14)
             usa_indireto = st.session_state.get("indireto") == "Sim"
 
-            # Calcula a matemática para os serviços filtrados
             for serv_nome in servicos_selecionados:
                 dados_s = st.session_state["db_servicos"][serv_nome]
                 
-                # Custos
-                t_min = dados_s.get("tempo_min", 60.0)
-                c_exec = (t_min / 60) * valor_hora_global if usa_indireto else 0.0
-                df_m = pd.DataFrame(dados_s.get("maquinas", []))
-                c_maq = pd.to_numeric(df_m["custo"], errors="coerce").fillna(0.0).sum() if not df_m.empty else 0.0
-                df_i = pd.DataFrame(dados_s.get("insumos", []))
-                c_ins = (pd.to_numeric(df_i["QT"], errors="coerce").fillna(0.0) * pd.to_numeric(df_i["Preço (R$)"], errors="coerce").fillna(0.0)).sum() if not df_i.empty else 0.0
-                df_o = pd.DataFrame(dados_s.get("outros_custos", []))
-                c_outros_s = pd.to_numeric(df_o["Valor (R$)"], errors="coerce").fillna(0.0).sum() if not df_o.empty else 0.0
-                c_alu = dados_s.get("custo_aluguel", 0.0)
-                c_rep = dados_s.get("repasse_fixo", 0.0)
+                t_min_l = dados_s.get("tempo_min", 60.0)
+                c_exec_l = (t_min_l / 60) * valor_hora_global if usa_indireto else 0.0
+                df_m_l = pd.DataFrame(dados_s.get("maquinas", []))
+                c_maq_l = pd.to_numeric(df_m_l["custo"], errors="coerce").fillna(0.0).sum() if not df_m_l.empty else 0.0
+                df_i_l = pd.DataFrame(dados_s.get("insumos", []))
+                c_ins_l = (pd.to_numeric(df_i_l["QT"], errors="coerce").fillna(0.0) * pd.to_numeric(df_i_l["Preço (R$)"], errors="coerce").fillna(0.0)).sum() if not df_i_l.empty else 0.0
+                df_o_l = pd.DataFrame(dados_s.get("outros_custos", []))
+                c_outros_s_l = pd.to_numeric(df_o_l["Valor (R$)"], errors="coerce").fillna(0.0).sum() if not df_o_l.empty else 0.0
                 
-                # Precificação
-                preco = dados_s.get("preco_escolhido", 0.0)
-                taxas_s = dados_s.get("taxas", {})
-                t_com = taxas_s.get("comissao", 0.0)
-                cenario_s = taxas_s.get("cenario_cartao", "Crédito 1x")
-                t_car = 0.0
-                if not df_taxas_globais.empty and cenario_s in df_taxas_globais["Taxa"].values:
-                    t_car = float(df_taxas_globais[df_taxas_globais["Taxa"] == cenario_s]["Porcentagem (%)"].iloc[0])
-                t_imp = taxas_s.get("aliquota_imposto", 6.0)
+                c_alu_hora_l = dados_s.get("custo_aluguel", 0.0)
+                c_alu_l = c_alu_hora_l * (t_min_l / 60)
+                c_rep_l = dados_s.get("repasse_fixo", 0.0)
                 
-                c_tot = c_exec + c_maq + c_ins + c_alu + c_rep + c_outros_s
-                liq = preco - (preco * (t_com/100)) - (preco * (t_car/100)) - (preco * (t_imp/100))
-                lucro_s = liq - c_tot
-                margem_s = (lucro_s / preco) if preco > 0 else 0.0
+                preco_l = dados_s.get("preco_escolhido", 0.0)
+                p_rep_med_l = dados_s.get("repasse_percentual", 0.0)
+                taxas_s_l = dados_s.get("taxas", {})
+                t_com_l = taxas_s_l.get("comissao", 0.0)
+                cenario_s_l = taxas_s_l.get("cenario_cartao", "Crédito 1x")
+                t_car_l = 0.0
+                if not df_taxas_globais.empty and cenario_s_l in df_taxas_globais["Taxa"].values:
+                    t_car_l = float(df_taxas_globais[df_taxas_globais["Taxa"] == cenario_s_l]["Porcentagem (%)"].iloc[0])
+                t_imp_l = taxas_s_l.get("aliquota_imposto", 6.0)
+                
+                v_imp_l = preco_l * (t_imp_l / 100)
+                v_car_l = preco_l * (t_car_l / 100)
+                v_com_l = preco_l * (t_com_l / 100)
+                
+                liq_temp = preco_l - v_com_l - v_car_l - v_imp_l
+                v_rep_med_l = liq_temp * (p_rep_med_l / 100)
+                
+                c_tot_l = c_exec_l + c_maq_l + c_ins_l + c_alu_l + c_rep_l + c_outros_s_l
+                lucro_s_l = liq_temp - v_rep_med_l - c_tot_l
+                margem_s_l = (lucro_s_l / preco_l) if preco_l > 0 else 0.0
+                taxas_totais_l = v_imp_l + v_car_l + v_com_l
+                
+                taxas_pct_totais_l = (t_com_l + t_imp_l + t_car_l) / 100
+                div_break_l = (1 - taxas_pct_totais_l) * (1 - (p_rep_med_l / 100))
+                preco_sug_l = c_tot_l / div_break_l if div_break_l > 0 else 0.0
                 
                 dados_comp.append({
-                    "Serviço": serv_nome, "Preço (R$)": preco, "Custo Total (R$)": c_tot, 
-                    "Lucro Líquido (R$)": lucro_s, "Margem": margem_s
+                    "Serviço": serv_nome, 
+                    "Preço de Venda (R$)": preco_l, 
+                    "Preço Sugerido (R$)": preco_sug_l,
+                    "Custo Total (R$)": c_tot_l, 
+                    "Lucro Líquido (R$)": lucro_s_l,
+                    "Taxas/Impostos Totais (R$)": taxas_totais_l,
+                    "Impostos (R$)": v_imp_l,
+                    "Taxa Cartão (R$)": v_car_l,
+                    "Comissão (R$)": v_com_l,
+                    "Repasse Médico (R$)": v_rep_med_l,
+                    "Hora Clínica (R$)": c_exec_l,
+                    "Máquinas e Equip. (R$)": c_maq_l,
+                    "Materiais e Insumos (R$)": c_ins_l,
+                    "Outros Custos (R$)": c_outros_s_l,
+                    "Aluguel (R$)": c_alu_l,
+                    "Repasse Fixo (R$)": c_rep_l,
+                    "Margem": margem_s_l
                 })
                 
             df_comp = pd.DataFrame(dados_comp)
-            df_comp = df_comp.sort_values(by="Lucro Líquido (R$)", ascending=True) # Maior no topo
+            df_comp = df_comp.sort_values(by="Lucro Líquido (R$)", ascending=True) 
             
-            # --- INDICADORES DA SELEÇÃO ATUAL ---
             st.markdown("##### 💡 Insights da Seleção:")
             col_in1, col_in2, col_in3 = st.columns(3)
-            servico_top = df_comp.iloc[-1] # Como está ordenado crescente, o último é o maior
+            servico_top = df_comp.iloc[-1] 
             lucro_medio = df_comp["Lucro Líquido (R$)"].mean()
             
             col_in1.metric("Serviço Mais Rentável", servico_top["Serviço"])
@@ -684,19 +760,19 @@ def render_ficha_tecnica():
             
             st.write("")
 
-            # PLOTAGEM DO GRÁFICO
-            df_melted = df_comp.melt(id_vars=["Serviço"], value_vars=["Preço (R$)", "Custo Total (R$)", "Lucro Líquido (R$)"], var_name="Métrica", value_name="Valor")
+            df_melted = df_comp.melt(id_vars=["Serviço"], value_vars=metricas_selecionadas, var_name="Métrica", value_name="Valor")
             fig_comp = px.bar(
                 df_melted, y="Serviço", x="Valor", color="Métrica", 
-                barmode="group", orientation='h', color_discrete_sequence=['#3498db', '#e74c3c', '#2ecc71']
+                barmode="group", orientation='h', color_discrete_sequence=px.colors.qualitative.Plotly
             )
             fig_comp.update_traces(texttemplate='R$ %{x:,.0f}', textposition='outside', textfont_size=11)
             max_val = df_melted["Valor"].max()
             altura_dinamica = max(400, len(df_comp) * 85) 
+            
             fig_comp.update_layout(
                 plot_bgcolor="rgba(0,0,0,0)", xaxis_title="Reais (R$)", yaxis_title="",
-                margin=dict(t=10, b=10, l=150), legend_title="",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                margin=dict(t=10, b=50, l=150), legend_title="",
+                legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5),
                 xaxis=dict(range=[0, max_val * 1.25]), height=altura_dinamica
             )
             st.plotly_chart(fig_comp, use_container_width=True)
@@ -704,17 +780,116 @@ def render_ficha_tecnica():
             with st.expander("📄 Ver Tabela de Comparação Completa"):
                 df_exibicao = df_comp.sort_values(by="Lucro Líquido (R$)", ascending=False)
                 st.dataframe(df_exibicao.style.format({
-                    "Preço (R$)": "R$ {:,.2f}", "Custo Total (R$)": "R$ {:,.2f}", 
-                    "Lucro Líquido (R$)": "R$ {:,.2f}", "Margem": "{:.1%}"
+                    "Preço de Venda (R$)": "R$ {:,.2f}", 
+                    "Preço Sugerido (R$)": "R$ {:,.2f}",
+                    "Custo Total (R$)": "R$ {:,.2f}", 
+                    "Lucro Líquido (R$)": "R$ {:,.2f}",
+                    "Taxas/Impostos Totais (R$)": "R$ {:,.2f}",
+                    "Impostos (R$)": "R$ {:,.2f}",
+                    "Taxa Cartão (R$)": "R$ {:,.2f}",
+                    "Comissão (R$)": "R$ {:,.2f}",
+                    "Repasse Médico (R$)": "R$ {:,.2f}",
+                    "Hora Clínica (R$)": "R$ {:,.2f}",
+                    "Máquinas e Equip. (R$)": "R$ {:,.2f}",
+                    "Materiais e Insumos (R$)": "R$ {:,.2f}",
+                    "Outros Custos (R$)": "R$ {:,.2f}",
+                    "Aluguel (R$)": "R$ {:,.2f}",
+                    "Repasse Fixo (R$)": "R$ {:,.2f}",
+                    "Margem": "{:.1%}"
                 }), use_container_width=True, hide_index=True)
         else:
-            st.warning("⚠️ O gráfico está vazio porque você desmarcou todos os serviços. Selecione ao menos um acima.")
+            st.warning("⚠️ Selecione pelo menos um serviço e uma métrica para exibir o gráfico.")
+
+        # ==========================================
+        # EXPORTAÇÃO EM LOTE (ZIP COM TODOS OS PDFs)
+        # ==========================================
+        st.divider()
+        st.markdown(f"<h4 style='color: {COR_CABECALHO};'>📦 Exportação em Lote</h4>", unsafe_allow_html=True)
+        st.info("Selecione os serviços para gerar um arquivo ZIP contendo todas as Fichas Técnicas em PDF de uma só vez.")
+
+        servicos_para_zip = st.multiselect(
+            "Fichas para incluir no ZIP:",
+            options=todas_opcoes_servicos,
+            default=todas_opcoes_servicos,
+            key="zip_multiselect"
+        )
+
+        if st.button("🗜️ Gerar Arquivo ZIP com as Fichas", type="primary", use_container_width=True):
+            if servicos_para_zip:
+                zip_buffer = io.BytesIO()
+                
+                with st.spinner("Gerando PDFs e compactando... Isso pode levar alguns segundos."):
+                    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                        for serv_nome in servicos_para_zip:
+                            dados_s = st.session_state["db_servicos"][serv_nome]
+                            
+                            t_min_z = dados_s.get("tempo_min", 60.0)
+                            v_hora_z = st.session_state.get("valor_hora", 48.14)
+                            usa_ind_z = st.session_state.get("indireto") == "Sim"
+                            c_exec_z = (t_min_z / 60) * v_hora_z if usa_ind_z else 0.0
+
+                            df_m_z = pd.DataFrame(dados_s.get("maquinas", []))
+                            c_maq_z = pd.to_numeric(df_m_z["custo"], errors="coerce").fillna(0.0).sum() if not df_m_z.empty else 0.0
+
+                            df_i_z = pd.DataFrame(dados_s.get("insumos", []))
+                            c_ins_z = (pd.to_numeric(df_i_z["QT"], errors="coerce").fillna(0.0) * pd.to_numeric(df_i_z["Preço (R$)"], errors="coerce").fillna(0.0)).sum() if not df_i_z.empty else 0.0
+
+                            df_o_z = pd.DataFrame(dados_s.get("outros_custos", []))
+                            c_outros_s_z = pd.to_numeric(df_o_z["Valor (R$)"], errors="coerce").fillna(0.0).sum() if not df_o_z.empty else 0.0
+
+                            c_alu_hora_z = dados_s.get("custo_aluguel", 0.0)
+                            c_alu_z = c_alu_hora_z * (t_min_z / 60)
+                            c_rep_z = dados_s.get("repasse_fixo", 0.0)
+
+                            preco_z = dados_s.get("preco_escolhido", 0.0)
+                            p_rep_med_z = dados_s.get("repasse_percentual", 0.0)
+                            taxas_s_z = dados_s.get("taxas", {})
+                            t_com_z = taxas_s_z.get("comissao", 0.0)
+
+                            cenario_s_z = taxas_s_z.get("cenario_cartao", "Crédito 1x")
+                            t_car_z = 0.0
+                            df_taxas_g = st.session_state.get("df_lista_taxas", pd.DataFrame())
+                            if not df_taxas_g.empty and cenario_s_z in df_taxas_g["Taxa"].values:
+                                t_car_z = float(df_taxas_g[df_taxas_g["Taxa"] == cenario_s_z]["Porcentagem (%)"].iloc[0])
+
+                            t_imp_z = taxas_s_z.get("aliquota_imposto", 6.0)
+
+                            c_tot_z = c_exec_z + c_maq_z + c_ins_z + c_alu_z + c_rep_z + c_outros_s_z
+                            v_imp_z = preco_z * (t_imp_z / 100)
+                            v_car_z = preco_z * (t_car_z / 100)
+                            v_com_z = preco_z * (t_com_z / 100)
+                            
+                            liq_temp_z = preco_z - v_com_z - v_car_z - v_imp_z
+                            v_rep_med_z = liq_temp_z * (p_rep_med_z / 100)
+                            
+                            lucro_s_z = liq_temp_z - v_rep_med_z - c_tot_z
+                            margem_s_z = (lucro_s_z / preco_z) if preco_z > 0 else 0.0
+
+                            pdf_bytes = gerar_pdf_ficha_tecnica(
+                                serv_nome, preco_z, c_tot_z, lucro_s_z, margem_s_z, 
+                                v_imp_z, v_car_z, v_com_z, v_rep_med_z, df_m_z, df_i_z, df_o_z
+                            )
+
+                            nome_arquivo_limpo = "".join(c for c in serv_nome if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                            zip_file.writestr(f"Ficha_{nome_arquivo_limpo}.pdf", pdf_bytes)
+
+                zip_buffer.seek(0)
+                st.success("✅ Arquivo ZIP gerado com sucesso!")
+                st.download_button(
+                    label="⬇️ CLIQUE AQUI PARA SALVAR O ZIP",
+                    data=zip_buffer,
+                    file_name="Todas_As_Fichas_Tecnicas.zip",
+                    mime="application/zip",
+                    use_container_width=True
+                )
+            else:
+                st.warning("Selecione pelo menos um serviço para gerar o arquivo.")
 
     with tab_custos:
         st.subheader("Tempo e Repasses")
         c_t1, c_t2, c_t3 = st.columns(3)
         c_t1.number_input("TEMPO de execução (Minutos):", min_value=0.0, step=5.0, format="%.0f", key="tempo_min")
-        c_t2.number_input("Aluguel extra de máquina (R$):", min_value=0.0, step=10.0, format="%.2f", key="custo_aluguel")
+        c_t2.number_input("Aluguel Máquina (R$/Hora):", min_value=0.0, step=10.0, format="%.2f", key="custo_aluguel", help="O sistema calculará proporcional ao tempo da sessão.")
         c_t3.number_input("Repasse profissionais (Fixo R$):", min_value=0.0, step=10.0, format="%.2f", key="repasse_fixo")
         
         st.divider()
@@ -864,10 +1039,11 @@ def render_ficha_tecnica():
                     st.rerun()
 
     with tab_precificacao:
-        st.subheader("Configuração Fiscal e Cenários de Pagamento")
-        col_f1, col_f2 = st.columns(2)
+        st.subheader("Configuração Fiscal e Repasses")
+        col_f1, col_f2, col_f3 = st.columns(3)
         col_f1.selectbox("Modelo / Tipo de Imposto", ["Simples Nacional", "Lucro Presumido", "Lucro Real", "Isento/PF"], key="tipo_imposto")
         col_f2.number_input("Alíquota do Imposto (%)", min_value=0.0, step=0.1, format="%.2f", key="aliquota_imposto")
+        col_f3.number_input("Repasse Médico (%)", min_value=0.0, step=1.0, format="%.2f", key="repasse_percentual", help="Calculado em cima do Valor Líquido (após impostos e taxas).")
 
         st.divider()
         opcoes_taxas = df_taxas_globais["Taxa"].tolist() if not df_taxas_globais.empty else ["Nenhuma taxa cadastrada"]
@@ -878,6 +1054,7 @@ def render_ficha_tecnica():
 
         st.markdown("### Preço de Venda")
         st.number_input("PREÇO DE TABELA FINAL (R$)", min_value=0.0, step=10.0, format="%.2f", key="preco_escolhido")
+        st.caption(f"💡 **Dica do Sistema:** Para ter **LUCRO ZERO**, seu preço de tabela precisaria ser de pelo menos **R$ {preco_sugerido_break_even:,.2f}**.")
 
     with tab_gerenciar:
         st.info("Aqui você pode criar um serviço em branco, renomear um existente ou apagar serviços que não usa mais.")
@@ -1138,7 +1315,7 @@ def render_equipamentos():
             novo_vida_eq = c3.number_input("Vida Útil (Anos)", value=float(row_eq["Tempo de vida útil (anos)"]), min_value=1.0, step=1.0, format="%.1f", key="edit_vida_eq")
             novo_cap_eq = c1.number_input("Capacidade Aplicações / dia (R$)", value=float(row_eq["Capacidade de Aplicações / dia (R$)"]), min_value=0.0, step=10.0, format="%.2f", key="edit_cap_eq")
             novo_apps_eq = c2.number_input("Aplicações (média diária)", value=float(row_eq["Aplicações (média diária)"]), min_value=1.0, step=1.0, format="%.1f", key="edit_apps_eq")
-            novo_manut_eq = c3.number_input("Manutenção Anual (R$)", value=float(row_eq["Custo anual de manutenção (R$)"]), min_value=0.0, step=10.0, format="%.2f", key="edit_manut_eq")
+            novo_vida_eq = c3.number_input("Manutenção Anual (R$)", value=float(row_eq["Custo anual de manutenção (R$)"]), min_value=0.0, step=10.0, format="%.2f", key="edit_manut_eq")
             
             st.write("")
             if st.button("💾 Salvar Edição", key="btn_salvar_edit_eq", use_container_width=True):
@@ -1268,7 +1445,7 @@ def render_taxas():
     
     if st.button("💾 Salvar Alterações de Taxas na Nuvem", type="primary"):
         salvar_estado_nuvem()
-        st.success("Taxas sincronizadas com a Nuvem com sucesso!")
+        st.success("Taxas sincronizados com a Nuvem com sucesso!")
 
     st.subheader("⚙️ Gerenciar Taxas")
     
@@ -1328,136 +1505,149 @@ def render_taxas():
 
 def render_protocolos():
     cabecalho_padrao("🚀 PROTOCOLOS E JORNADAS")
-    st.markdown("Crie pacotes combinando múltiplos serviços e calcule a margem de lucro consolidada.")
-
-    if "protocolos" not in st.session_state:
-        st.session_state["protocolos"] = []
+    
     if "protocolo_atual" not in st.session_state:
-        st.session_state["protocolo_atual"] = {"nome": "", "itens": []}
-
-    st.subheader("1. Configurar Protocolo")
-    nome_prot = st.text_input("Nome do Protocolo / Pacote", value=st.session_state["protocolo_atual"]["nome"])
-    st.session_state["protocolo_atual"]["nome"] = nome_prot
-
-    servicos_disponiveis = list(st.session_state.get("db_servicos", {}).keys())
+        st.session_state["protocolo_atual"] = {"nome": "", "descricao": "", "beneficio": "", "itens": []}
     
-    st.markdown("### 2. Gerenciar Serviços do Pacote")
-    tab_add_p, tab_edit_p, tab_del_p = st.tabs(["➕ Adicionar Item", "✏️ Editar Item", "🗑️ Remover Item"])
+    # --- 1. CONFIGURAÇÃO COMERCIAL ---
+    st.subheader("1. Identidade do Protocolo")
+    c_p1, c_p2 = st.columns(2)
+    st.session_state.protocolo_atual["nome"] = c_p1.text_input("Nome do Protocolo (Ex: Jornada Bariátrica)", value=st.session_state.protocolo_atual["nome"])
+    st.session_state.protocolo_atual["descricao"] = st.text_area("Descrição da Jornada", value=st.session_state.protocolo_atual.get("descricao", ""), placeholder="O que está incluído no acompanhamento...")
+    st.session_state.protocolo_atual["beneficio"] = st.text_input("Principal Benefício / Proposta de Valor", value=st.session_state.protocolo_atual.get("beneficio", ""))
+
+    # --- 2. MONTAGEM DO PACOTE ---
+    st.divider()
+    st.subheader("2. Composição da Jornada")
     
-    def calcular_custo_servico(nome_serv):
-        dados_s = st.session_state["db_servicos"][nome_serv]
-        t_min = dados_s.get("tempo_min", 60.0)
-        v_hora = st.session_state.get("valor_hora", 48.14)
-        usa_indireto = st.session_state.get("indireto") == "Sim"
-        c_exec = (t_min / 60) * v_hora if usa_indireto else 0.0
-        
-        df_m = pd.DataFrame(dados_s.get("maquinas", []))
-        c_maq = pd.to_numeric(df_m["custo"], errors="coerce").fillna(0.0).sum() if not df_m.empty else 0.0
-        
-        df_i = pd.DataFrame(dados_s.get("insumos", []))
-        c_ins = (pd.to_numeric(df_i["QT"], errors="coerce").fillna(0.0) * pd.to_numeric(df_i["Preço (R$)"], errors="coerce").fillna(0.0)).sum() if not df_i.empty else 0.0
-        
-        df_o = pd.DataFrame(dados_s.get("outros_custos", []))
-        c_outros_s = pd.to_numeric(df_o["Valor (R$)"], errors="coerce").fillna(0.0).sum() if not df_o.empty else 0.0
+    db_servicos = st.session_state.get("db_servicos", {})
+    if not db_servicos:
+        st.warning("Cadastre serviços na Ficha Técnica primeiro.")
+        return
 
-        c_alu = dados_s.get("custo_aluguel", 0.0)
-        c_rep = dados_s.get("repasse_fixo", 0.0)
-        return c_exec + c_maq + c_ins + c_alu + c_rep + c_outros_s
-
-    with tab_add_p:
-        with st.form("add_item_protocolo", clear_on_submit=True):
-            c1, c2, c3 = st.columns([3, 1, 1])
-            if servicos_disponiveis:
-                serv_selecionado = c1.selectbox("Adicionar Serviço", servicos_disponiveis)
-                qtd = c2.number_input("Qtd (Sessões)", min_value=1, step=1)
-                desconto_pct = c3.number_input("Desconto (%)", min_value=0.0, step=1.0)
-                
-                if st.form_submit_button("Adicionar ao Protocolo"):
-                    preco_base = st.session_state["db_servicos"][serv_selecionado].get("preco_escolhido", 0.0)
-                    custo_unitario = calcular_custo_servico(serv_selecionado)
-                    preco_final = preco_base * (1 - (desconto_pct/100))
-                    
-                    st.session_state["protocolo_atual"]["itens"].append({
-                        "Serviço": serv_selecionado, "Qtd": qtd, 
-                        "Preço Un.": preco_base, "Desconto %": desconto_pct, 
-                        "Subtotal (Venda)": preco_final * qtd,
-                        "Subtotal (Custo)": custo_unitario * qtd
-                    })
-                    st.rerun()
-            else:
-                st.warning("Cadastre serviços na Ficha Técnica primeiro.")
-
-    with tab_edit_p:
-        itens = st.session_state["protocolo_atual"]["itens"]
-        if itens:
-            nomes_itens = [f"{i} - {item['Serviço']} (Qtd: {item['Qtd']})" for i, item in enumerate(itens)]
-            item_selecionado_str = st.selectbox("Selecione o item para editar:", nomes_itens, key="sel_edit_prot")
+    with st.expander("➕ Adicionar Serviço ao Pacote", expanded=True):
+        with st.form("form_add_item_prot", clear_on_submit=True):
+            c_a1, c_a2, c_a3 = st.columns([3,1,1])
+            serv_nome = c_a1.selectbox("Serviço", list(db_servicos.keys()))
+            qtd = c_a2.number_input("Qtde (Sessões)", min_value=1, value=1)
+            desc_lin = c_a3.number_input("Desc. Linha (%)", min_value=0.0, max_value=100.0, value=0.0)
             
-            if item_selecionado_str:
-                idx_item = int(item_selecionado_str.split(" - ")[0])
-                item_atual = itens[idx_item]
-                
-                c1, c2, c3 = st.columns([3, 1, 1])
-                index_serv = servicos_disponiveis.index(item_atual["Serviço"]) if item_atual["Serviço"] in servicos_disponiveis else 0
-                
-                novo_serv_prot = c1.selectbox("Serviço", servicos_disponiveis, index=index_serv, key=f"edit_serv_prot_{idx_item}")
-                nova_qtd_prot = c2.number_input("Quantidade (Sessões)", min_value=1, step=1, value=int(item_atual["Qtd"]), key=f"edit_qtd_prot_{idx_item}")
-                novo_desc_prot = c3.number_input("Desconto no Item (%)", min_value=0.0, step=1.0, value=float(item_atual["Desconto %"]), key=f"edit_desc_prot_{idx_item}")
-                
-                if st.button("💾 Atualizar Item"):
-                    preco_base_novo = st.session_state["db_servicos"][novo_serv_prot].get("preco_escolhido", 0.0)
-                    custo_unitario_novo = calcular_custo_servico(novo_serv_prot)
-                    preco_final_novo = preco_base_novo * (1 - (novo_desc_prot/100))
-                    
-                    st.session_state["protocolo_atual"]["itens"][idx_item] = {
-                        "Serviço": novo_serv_prot, "Qtd": nova_qtd_prot, 
-                        "Preço Un.": preco_base_novo, "Desconto %": novo_desc_prot, 
-                        "Subtotal (Venda)": preco_final_novo * nova_qtd_prot,
-                        "Subtotal (Custo)": custo_unitario_novo * nova_qtd_prot
-                    }
-                    st.rerun()
-
-    with tab_del_p:
-        itens = st.session_state["protocolo_atual"]["itens"]
-        if itens:
-            nomes_itens_del = [f"{i} - {item['Serviço']}" for i, item in enumerate(itens)]
-            item_del_str = st.selectbox("Remover:", nomes_itens_del, key="sel_del_prot")
-            if st.button("🗑️ Remover Item", use_container_width=True):
-                idx_del = int(item_del_str.split(" - ")[0])
-                st.session_state["protocolo_atual"]["itens"].pop(idx_del)
+            if st.form_submit_button("ADICIONAR ITEM"):
+                st.session_state.protocolo_atual["itens"].append({
+                    "servico": serv_nome,
+                    "qtd": qtd,
+                    "desconto": desc_lin
+                })
                 st.rerun()
 
-    st.divider()
-    st.markdown("### 3. Resumo e Consolidação do Protocolo")
-    itens = st.session_state["protocolo_atual"]["itens"]
-    
+    # --- 3. CÁLCULO INDIVIDUALIZADO (Lógica da Planilha) ---
+    itens = st.session_state.protocolo_atual["itens"]
     if itens:
-        df_prot = pd.DataFrame(itens)
-        st.dataframe(df_prot.style.format({
-            "Preço Un.": "R$ {:.2f}", "Subtotal (Venda)": "R$ {:.2f}", "Subtotal (Custo)": "R$ {:.2f}"
-        }), use_container_width=True)
-        
-        # Consolidação Financeira
-        venda_total = df_prot["Subtotal (Venda)"].sum()
-        custo_total = df_prot["Subtotal (Custo)"].sum()
-        
-        taxa_cartao = st.session_state.get("df_lista_taxas", pd.DataFrame())
-        taxa_cartao_pct = taxa_cartao["Porcentagem (%)"].max() if not taxa_cartao.empty else 0.0
-        imposto_pct = st.session_state.get("aliquota_imposto", 6.0)
-        
-        deducoes = venda_total * ((taxa_cartao_pct + imposto_pct) / 100)
-        lucro_liquido = venda_total - custo_total - deducoes
-        margem_pct = (lucro_liquido / venda_total * 100) if venda_total > 0 else 0
+        dados_calculados = []
+        valor_hora_global = st.session_state.get("valor_hora", 48.14)
+        usa_ind = st.session_state.get("indireto") == "Sim"
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Preço de Venda (Pacote)", f"R$ {venda_total:,.2f}")
-        c2.metric("Custo Total (Pacote)", f"R$ {custo_total:,.2f}")
-        c3.metric("Lucro Líquido", f"R$ {lucro_liquido:,.2f}")
-        c4.metric("Margem Real (%)", f"{margem_pct:.1f}%")
+        df_taxas_g = st.session_state.get("df_lista_taxas", pd.DataFrame())
+
+        for i, item in enumerate(itens):
+            ficha = db_servicos[item["servico"]]
+            
+            # Preço Base
+            p_un = ficha.get("preco_escolhido", 0.0)
+            p_tot_bruto = p_un * item["qtd"]
+            p_tot_com_desc = p_tot_bruto * (1 - (item["desconto"]/100))
+            
+            # Taxas Individuais
+            txs = ficha.get("taxas", {})
+            t_imp = txs.get("aliquota_imposto", 6.0)
+            t_com = txs.get("comissao", 0.0)
+            
+            cenario_s_l = txs.get("cenario_cartao", "Crédito 1x")
+            t_car = 0.0
+            if not df_taxas_g.empty and cenario_s_l in df_taxas_g["Taxa"].values:
+                t_car = float(df_taxas_g[df_taxas_g["Taxa"] == cenario_s_l]["Porcentagem (%)"].iloc[0])
+            
+            v_deducoes = p_tot_com_desc * ((t_imp + t_com + t_car)/100)
+            resultado_liquido = p_tot_com_desc - v_deducoes
+            
+            # Repasse Médico individual da ficha
+            p_rep_med = ficha.get("repasse_percentual", 0.0)
+            v_rep_med = resultado_liquido * (p_rep_med/100)
+            
+            # Custos Operacionais
+            t_min = ficha.get("tempo_min", 60.0)
+            c_exec = (t_min/60) * valor_hora_global if usa_ind else 0.0
+            
+            df_maq_f = pd.DataFrame(ficha.get("maquinas", []))
+            c_maq = pd.to_numeric(df_maq_f["custo"], errors="coerce").fillna(0.0).sum() if not df_maq_f.empty else 0.0
+            
+            c_alu_h = ficha.get("custo_aluguel", 0.0)
+            c_alu = c_alu_h * (t_min/60)
+            
+            df_ins_f = pd.DataFrame(ficha.get("insumos", []))
+            c_ins = 0.0
+            if not df_ins_f.empty:
+                c_ins = (pd.to_numeric(df_ins_f["QT"], errors="coerce").fillna(0.0) * pd.to_numeric(df_ins_f["Preço (R$)"], errors="coerce").fillna(0.0)).sum()
+            
+            df_o_f = pd.DataFrame(ficha.get("outros_custos", []))
+            c_outros_s = pd.to_numeric(df_o_f["Valor (R$)"], errors="coerce").fillna(0.0).sum() if not df_o_f.empty else 0.0
+
+            c_total_operacional = (c_exec + c_maq + c_alu + c_ins + c_outros_s + ficha.get("repasse_fixo", 0.0)) * item["qtd"]
+            
+            lucro_item = resultado_liquido - v_rep_med - c_total_operacional
+            
+            dados_calculados.append({
+                "Serviço": item["servico"],
+                "Qtde": item["qtd"],
+                "Venda (R$)": p_tot_com_desc,
+                "Resultado Líquido": resultado_liquido,
+                "Repasse Médico": v_rep_med,
+                "Custo Serviço": c_total_operacional,
+                "Lucro": lucro_item,
+                "% Lucro": (lucro_item / p_tot_com_desc) if p_tot_com_desc > 0 else 0.0
+            })
+
+        df_prot = pd.DataFrame(dados_calculados)
         
-        def gerar_word_proposta(nome_pacote, df_itens, total_venda):
+        # --- EXIBIÇÃO TABELA ROXA (Igual Planilha) ---
+        st.markdown("**Tabela de Resultados por Item:**")
+        st.dataframe(df_prot.style.format({
+            "Venda (R$)": "R$ {:,.2f}", "Resultado Líquido": "R$ {:,.2f}", 
+            "Repasse Médico": "R$ {:,.2f}", "Custo Serviço": "R$ {:,.2f}", 
+            "Lucro": "R$ {:,.2f}", "% Lucro": "{:.1%}"
+        }), use_container_width=True, hide_index=True)
+
+        if st.button("🗑️ Limpar Pacote"):
+            st.session_state.protocolo_atual["itens"] = []
+            st.rerun()
+
+        # --- 4. RESUMO DE REPASSES ---
+        st.divider()
+        col_res1, col_res2 = st.columns(2)
+        
+        with col_res1:
+            st.markdown("### 💰 Consolidação do Protocolo")
+            venda_tot = df_prot["Venda (R$)"].sum()
+            custo_tot = df_prot["Custo Serviço"].sum()
+            repasse_tot = df_prot["Repasse Médico"].sum()
+            lucro_tot = df_prot["Lucro"].sum()
+            
+            st.metric("PREÇO FINAL DO PROTOCOLO", f"R$ {venda_tot:,.2f}")
+            st.metric("LUCRO LÍQUIDO FINAL (CLÍNICA)", f"R$ {lucro_tot:,.2f}", delta=f"{lucro_tot/venda_tot:.1%}" if venda_tot > 0 else "0%")
+            
+        with col_res2:
+            st.markdown("### 👥 Valor a Distribuir (Repasses)")
+            df_repasses = df_prot.groupby("Serviço")["Repasse Médico"].sum().reset_index(name="Total Repasse")
+            st.dataframe(df_repasses.style.format({"Total Repasse": "R$ {:,.2f}"}), use_container_width=True, hide_index=True)
+            st.metric("Total Pago à Equipe", f"R$ {repasse_tot:,.2f}")
+
+        # --- 5. GERAÇÃO DE PROPOSTA ---
+        def gerar_word_proposta(nome_pacote, desc, benef, df_itens, total_venda):
             doc = Document()
             doc.add_heading(f"Proposta Comercial: {nome_pacote}", 0)
+            if desc: doc.add_paragraph(f"Descrição: {desc}\n")
+            if benef: doc.add_paragraph(f"Benefícios: {benef}\n")
+            
             doc.add_paragraph("Detalhes dos serviços inclusos no seu pacote personalizado.\n")
             
             table = doc.add_table(rows=1, cols=3)
@@ -1470,8 +1660,8 @@ def render_protocolos():
             for index, row in df_itens.iterrows():
                 row_cells = table.add_row().cells
                 row_cells[0].text = str(row['Serviço'])
-                row_cells[1].text = f"{row['Qtd']} sessões"
-                row_cells[2].text = f"R$ {row['Subtotal (Venda)']:,.2f}"
+                row_cells[1].text = f"{row['Qtde']} sessões"
+                row_cells[2].text = f"R$ {row['Venda (R$)']:,.2f}"
                 
             p = doc.add_paragraph("\n")
             p.add_run(f"Valor Total do Investimento: R$ {total_venda:,.2f}").bold = True
@@ -1482,19 +1672,25 @@ def render_protocolos():
             return buffer
 
         st.write("")
-        if st.button("💾 Salvar Pacote na Nuvem", type="primary"):
-            st.success("Protocolo Salvo no estado da sessão!")
-            
-        arquivo_word = gerar_word_proposta(nome_prot, df_prot, venda_total)
-        st.download_button(
-            label="📄 Gerar e Baixar Proposta (Word)",
-            data=arquivo_word,
-            file_name=f"Proposta_{nome_prot}.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            use_container_width=True
-        )
+        c_save1, c_save2 = st.columns(2)
+        with c_save1:
+            if st.button("💾 SALVAR PROTOCOLO NA NUVEM", type="primary", use_container_width=True):
+                if "protocolos_db" not in st.session_state: st.session_state.protocolos_db = []
+                st.session_state.protocolos_db.append(st.session_state.protocolo_atual)
+                salvar_estado_nuvem()
+                st.success("Protocolo arquivado com sucesso!")
+        with c_save2:
+            arquivo_word = gerar_word_proposta(st.session_state.protocolo_atual["nome"], st.session_state.protocolo_atual["descricao"], st.session_state.protocolo_atual["beneficio"], df_prot, venda_tot)
+            st.download_button(
+                label="📄 Gerar Proposta (Word)",
+                data=arquivo_word,
+                file_name=f"Proposta_{st.session_state.protocolo_atual['nome']}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True
+            )
+
     else:
-        st.info("Adicione itens acima para ver o resumo.")
+        st.info("Adicione itens acima para começar a montar o protocolo.")
 
 # ==========================================
 # ROTEAMENTO

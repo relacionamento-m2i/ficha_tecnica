@@ -4,6 +4,7 @@ import plotly.express as px
 import io
 import unicodedata
 import zipfile
+import os
 
 try:
     from fpdf import FPDF
@@ -32,10 +33,15 @@ except ImportError:
 # ==========================================
 st.set_page_config(page_title="Portal de Precificação", page_icon="🔒", layout="wide", initial_sidebar_state="expanded", menu_items={'Get Help': None, 'Report a bug': None, 'About': None})
 
-COR_CABECALHO = "#7030A0"
-COR_FUNDO_CLARO = "#E6E0EC"
+# NOVO PADRÃO DE CORES M2i
+COR_CABECALHO = "#159EAC"
+COR_FUNDO_CLARO = "#E0F2F4"
 COR_TEXTO_BRANCO = "#FFFFFF"
-PALETA_GRAFICOS = ['#7030A0', '#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c']
+PALETA_GRAFICOS = ['#159EAC', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#9b59b6']
+
+# CONFIGURAÇÃO DA LOGO
+CAMINHO_LOGO = r"C:\Users\user\Downloads\Fichas Técnicas Código\logo.png"
+
 
 st.markdown(f"""
     <style>
@@ -49,12 +55,12 @@ st.markdown(f"""
     
     /* === Estilos da Tela de Login === */
     div[data-testid="stFormSubmitButton"] > button {{ background-color: {COR_CABECALHO} !important; color: white !important; border-radius: 8px !important; font-weight: bold !important; border: none !important; padding: 10px !important; }}
-    div[data-testid="stFormSubmitButton"] > button:hover {{ background-color: #5a2680 !important; box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important; }}
+    div[data-testid="stFormSubmitButton"] > button:hover {{ background-color: #0F7A85 !important; box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important; }}
     
     /* === Estilos dos KPIs (Cartões) === */
     div[data-testid="stMetric"] {{
         background-color: #FFFFFF;
-        border-left: 5px solid #7030A0;
+        border-left: 5px solid {COR_CABECALHO};
         padding: 15px 20px;
         border-radius: 8px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.05);
@@ -74,7 +80,7 @@ st.markdown(f"""
     div[data-baseweb="input"] > div:focus-within, 
     div[data-baseweb="select"] > div:focus-within {{
         border: 2px solid {COR_CABECALHO} !important;
-        box-shadow: 0 0 5px rgba(112, 48, 160, 0.2) !important;
+        box-shadow: 0 0 5px rgba(21, 158, 172, 0.2) !important;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -99,10 +105,14 @@ if st.session_state["usuario_logado"] is None:
     col_esq, col_centro, col_dir = st.columns([1.5, 1.2, 1.5])
     
     with col_centro:
+        # Tenta exibir a logo centralizada no login
+        if os.path.exists(CAMINHO_LOGO):
+            st.image(CAMINHO_LOGO, use_container_width=False, width=250)
+            
         st.markdown(f"""
-        <div style="background-color: {COR_CABECALHO}; padding: 25px; border-radius: 10px 10px 0 0; text-align: center;">
+        <div style="background-color: {COR_CABECALHO}; padding: 25px; border-radius: 10px 10px 0 0; text-align: center; margin-top: 15px;">
             <h2 style="margin: 0; color: white;">SISTEMA DE PRECIFICAÇÃO</h2>
-            <p style="color: #E6E0EC; margin-top: 5px; margin-bottom: 0;">Faça login para acessar seu painel</p>
+            <p style="color: {COR_FUNDO_CLARO}; margin-top: 5px; margin-bottom: 0;">Faça login para acessar seu painel</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -311,7 +321,7 @@ def gerar_pdf_ficha_tecnica(nome_servico, preco, custo_total, lucro, margem, imp
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
     
-    pdf.set_fill_color(112, 48, 160)
+    pdf.set_fill_color(21, 158, 172)
     pdf.set_text_color(255, 255, 255)
     pdf.cell(0, 10, f" FICHA TECNICA: {nome_servico.upper()}", 0, 1, 'C', fill=True)
     pdf.ln(5)
@@ -362,6 +372,12 @@ def gerar_pdf_ficha_tecnica(nome_servico, preco, custo_total, lucro, margem, imp
 # MENU LATERAL & ROTEAMENTO DE PÁGINAS
 # ==========================================
 with st.sidebar:    
+    
+    # ADICIONE ESTAS 3 LINHAS AQUI (Controlando o tamanho com o width)
+    if os.path.exists(CAMINHO_LOGO):
+        st.image(CAMINHO_LOGO, width=220) # Aumente ou diminua este número à vontade
+        st.write("") # Apenas para dar um respiro antes do texto abaixo
+    
     st.markdown(f"👤 Logado como: **{ID_CLIENTE}**")
     if st.button("🚪 Sair (Logout)", use_container_width=True):
         st.session_state.clear() 
@@ -605,13 +621,15 @@ def render_ficha_tecnica():
                 st.latex(rf"Impostos ({taxa_imposto_pct}\%) = {valor_imposto:.2f}")
                 st.latex(rf"Taxa\ Cartão ({taxa_cartao_pct}\%) = {valor_taxa_cartao:.2f}")
                 st.latex(rf"Comissão ({taxa_comissao_pct}\%) = {valor_comissao:.2f}")
-                st.info(f"**Resultado Líquido:** R$ {resultado_liquido:.2f} (O que sobra após taxas de venda)")
+                # CAIXA AZUL REMOVIDA AQUI: st.info para st.markdown
+                st.markdown(f"**Resultado Líquido:** R$ {resultado_liquido:.2f} (O que sobra após taxas de venda)")
 
             with c_mem2:
                 st.write("**2. Divisão do Resultado Líquido:**")
                 st.latex(rf"Repasse\ ao\ Médico ({repasse_percentual}\%) = {valor_repasse_medico:.2f}")
                 st.latex(rf"Custo\ Operacional = {custo_total_servico:.2f}")
-                st.success(f"**Lucro Final:** R$ {lucro:.2f} (O que sobra no caixa da clínica)")
+                # CAIXA VERDE REMOVIDA AQUI: st.success para st.markdown
+                st.markdown(f"**Lucro Final:** R$ {lucro:.2f} (O que sobra no caixa da clínica)")
             
             st.markdown("---")
             st.write("**Fórmulas de Eficiência Financeira:**")
@@ -659,7 +677,8 @@ def render_ficha_tecnica():
         )
 
         if servicos_selecionados and metricas_selecionadas:
-            st.success(f"👁️ Exibindo dados de **{len(servicos_selecionados)}** de **{total_cadastrados}** serviços cadastrados.")
+            # CAIXA VERDE REMOVIDA AQUI: st.success para st.write
+            st.write(f"👁️ Exibindo dados de **{len(servicos_selecionados)}** de **{total_cadastrados}** serviços cadastrados.")
             
             dados_comp = []
             valor_hora_global = st.session_state.get("valor_hora", 48.14)
@@ -1296,7 +1315,7 @@ def render_equipamentos():
             novo_vida_eq = c3.number_input("Vida Útil (Anos)", value=float(row_eq["Tempo de vida útil (anos)"]), min_value=1.0, step=1.0, format="%.1f", key="edit_vida_eq")
             novo_cap_eq = c1.number_input("Capacidade Aplicações / dia (R$)", value=float(row_eq["Capacidade de Aplicações / dia (R$)"]), min_value=0.0, step=10.0, format="%.2f", key="edit_cap_eq")
             novo_apps_eq = c2.number_input("Aplicações (média diária)", value=float(row_eq["Aplicações (média diária)"]), min_value=1.0, step=1.0, format="%.1f", key="edit_apps_eq")
-            novo_manut_eq = c3.number_input("Manutenção Anual (R$)", value=float(row_eq["Custo anual de manutenção (R$)"]), min_value=0.0, step=10.0, format="%.2f", key="edit_manut_eq")
+            novo_vida_eq = c3.number_input("Manutenção Anual (R$)", value=float(row_eq["Custo anual de manutenção (R$)"]), min_value=0.0, step=10.0, format="%.2f", key="edit_manut_eq")
             
             st.write("")
             if st.button("💾 Salvar Edição", key="btn_salvar_edit_eq", use_container_width=True):
@@ -1426,7 +1445,7 @@ def render_taxas():
     
     if st.button("💾 Salvar Alterações de Taxas na Nuvem", type="primary"):
         salvar_estado_nuvem()
-        st.success("Taxas sincronizadas com a Nuvem com sucesso!")
+        st.success("Taxas sincronizados com a Nuvem com sucesso!")
 
     st.subheader("⚙️ Gerenciar Taxas")
     
