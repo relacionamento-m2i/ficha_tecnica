@@ -1268,7 +1268,6 @@ def render_custos_fixos():
 
 def render_equipamentos():
     cabecalho_padrao("REGISTRO DE EQUIPAMENTOS")
-    st.warning("📌 Pendência Documentada: O método contábil exato de depreciação (vida útil vs taxa anual vs sessão) será refinado em atualizações futuras.")
     
     if st.button("💾 Salvar Alterações de Equip. na Nuvem", type="primary"):
         salvar_estado_nuvem()
