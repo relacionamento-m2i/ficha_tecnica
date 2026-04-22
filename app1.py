@@ -394,7 +394,7 @@ with st.sidebar:
             "3. Registro de Equipamentos",
             "4. Insumos e Materiais",
             "5. Impostos e Taxas",
-            "6. Protocolos (Jornadas) 🚀"
+            "6. Protocolos (Jornadas)"
         ]
     )
     st.divider()
@@ -1268,7 +1268,6 @@ def render_custos_fixos():
 
 def render_equipamentos():
     cabecalho_padrao("REGISTRO DE EQUIPAMENTOS")
-    st.warning("📌 Pendência Documentada: O método contábil exato de depreciação (vida útil vs taxa anual vs sessão) será refinado em atualizações futuras.")
     
     if st.button("💾 Salvar Alterações de Equip. na Nuvem", type="primary"):
         salvar_estado_nuvem()
@@ -1512,7 +1511,7 @@ def render_protocolos():
     # --- 1. CONFIGURAÇÃO COMERCIAL ---
     st.subheader("1. Identidade do Protocolo")
     c_p1, c_p2 = st.columns(2)
-    st.session_state.protocolo_atual["nome"] = c_p1.text_input("Nome do Protocolo (Ex: Jornada Bariátrica)", value=st.session_state.protocolo_atual["nome"])
+    st.session_state.protocolo_atual["nome"] = c_p1.text_input("Nome do Protocolo", value=st.session_state.protocolo_atual["nome"])
     st.session_state.protocolo_atual["descricao"] = st.text_area("Descrição da Jornada", value=st.session_state.protocolo_atual.get("descricao", ""), placeholder="O que está incluído no acompanhamento...")
     st.session_state.protocolo_atual["beneficio"] = st.text_input("Principal Benefício / Proposta de Valor", value=st.session_state.protocolo_atual.get("beneficio", ""))
 
@@ -1530,7 +1529,7 @@ def render_protocolos():
             c_a1, c_a2, c_a3 = st.columns([3,1,1])
             serv_nome = c_a1.selectbox("Serviço", list(db_servicos.keys()))
             qtd = c_a2.number_input("Qtde (Sessões)", min_value=1, value=1)
-            desc_lin = c_a3.number_input("Desc. Linha (%)", min_value=0.0, max_value=100.0, value=0.0)
+            desc_lin = c_a3.number_input("Desconto por Item (%)", min_value=0.0, max_value=100.0, value=0.0)
             
             if st.form_submit_button("ADICIONAR ITEM"):
                 st.session_state.protocolo_atual["itens"].append({
@@ -1701,4 +1700,4 @@ elif modulo_selecionado == "2. Custos Fixos e Hora Clínica": render_custos_fixo
 elif modulo_selecionado == "3. Registro de Equipamentos": render_equipamentos()
 elif modulo_selecionado == "4. Insumos e Materiais": render_insumos()
 elif modulo_selecionado == "5. Impostos e Taxas": render_taxas()
-elif modulo_selecionado == "6. Protocolos (Jornadas) 🚀": render_protocolos()
+elif modulo_selecionado == "6. Protocolos (Jornadas)": render_protocolos()

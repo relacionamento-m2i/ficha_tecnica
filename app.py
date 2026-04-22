@@ -42,7 +42,6 @@ PALETA_GRAFICOS = ['#159EAC', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#9b59
 # CONFIGURAÇÃO DA LOGO
 CAMINHO_LOGO = r"C:\Users\user\Downloads\Fichas Técnicas Código\logo.png"
 
-
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #F4F4F9; }}
@@ -105,7 +104,6 @@ if st.session_state["usuario_logado"] is None:
     col_esq, col_centro, col_dir = st.columns([1.5, 1.2, 1.5])
     
     with col_centro:
-        # Tenta exibir a logo centralizada no login
         if os.path.exists(CAMINHO_LOGO):
             st.image(CAMINHO_LOGO, use_container_width=False, width=250)
             
@@ -155,6 +153,7 @@ def salvar_estado_nuvem():
             "df_lista_insumos": st.session_state.get("df_lista_insumos", pd.DataFrame()).to_dict(orient="records"),
             "df_lista_taxas": st.session_state.get("df_lista_taxas", pd.DataFrame()).to_dict(orient="records"),
             "df_custos_categorias": {k: v.to_dict(orient="records") for k, v in st.session_state.get("df_custos_categorias", {}).items()},
+            "df_salas": st.session_state.get("df_salas", pd.DataFrame()).to_dict(orient="records"),
             "protocolos": st.session_state.get("protocolos_db", [])
         }
         try:
@@ -173,6 +172,7 @@ def carregar_estado_nuvem():
                 equip_data = dados.get("df_lista_equipamentos", [])
                 insumos_data = dados.get("df_lista_insumos", [])
                 taxas_data = dados.get("df_lista_taxas", [])
+                salas_data = dados.get("df_salas", [])
 
                 st.session_state["df_lista_equipamentos"] = pd.DataFrame(equip_data) if equip_data else pd.DataFrame(columns=[
                     "Nome do equipamento", "Valor de aquisição (R$)", "Tempo de vida útil (anos)", 
@@ -186,6 +186,8 @@ def carregar_estado_nuvem():
                 st.session_state["df_lista_taxas"] = pd.DataFrame(taxas_data) if taxas_data else pd.DataFrame(columns=[
                     "Taxa", "Porcentagem (%)"
                 ])
+
+                st.session_state["df_salas"] = pd.DataFrame(salas_data) if salas_data else pd.DataFrame(columns=["Sala", "M2"])
 
                 custos_raw = dados.get("df_custos_categorias", {})
                 st.session_state["df_custos_categorias"] = {k: pd.DataFrame(v) for k, v in custos_raw.items()}
@@ -206,49 +208,74 @@ def inicializar_padroes_caso_vazio():
     st.session_state["df_lista_insumos"] = pd.DataFrame(columns=["Material", "qt", "valor"])
     st.session_state["df_lista_taxas"] = pd.DataFrame(columns=["Taxa", "Porcentagem (%)"])
     
+    st.session_state["df_salas"] = pd.DataFrame([
+        {"Sala": "Sala 1 - Consultório Maior", "M2": 15.0},
+        {"Sala": "Sala 2 - Consultório Maior", "M2": 15.0},
+        {"Sala": "Sala 3 - Tecnologia", "M2": 10.0},
+        {"Sala": "Sala 4 - Esteticista", "M2": 10.0},
+        {"Sala": "Sala 5 - Consultório Terceiros", "M2": 12.0}
+    ])
+    
     st.session_state["df_custos_categorias"] = {
         "1. Despesa com pessoal": pd.DataFrame([
-            {"ÍTEM": "Total da folha de pagamento clt (com 13º)", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Despesas com alimentação e transporte", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Gratificações", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Uniformes", "MENSAL (R$)": 0.0}
+            {"ÍTEM": "1.1 Total da folha de pagamento clt (com 13º)", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "1.2 Despesas com alimentação e transporte", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "1.3 Reserva para recisões (6%)", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "1.4 Pro-labore", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "1.5 Descanso sem Remuneração", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "1.6 FGTS", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "1.7 Férias", "MENSAL (R$)": 0.0}
+        ]),
+        "2. Seguros": pd.DataFrame([
+            {"ÍTEM": "2.1 Seguros do estabelecimento", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "2.2 Seguro médico", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "2.3 Outros seguros", "MENSAL (R$)": 0.0}
+        ]),
+        "3. Manutenção e conservação": pd.DataFrame([
+            {"ÍTEM": "3.1 Elevadores", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.2 Manutenção do ar", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.3 Coleta de lixo hospitalar", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.4 Manutenção de equipamentos", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.5 Pinturas", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.6 jardins", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.7 Extintores", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.8 Reserva de Equipamentos", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.9 Outras Despesas", "MENSAL (R$)": 0.0}
         ]),
         "4. Despesas estrutura e de consumo": pd.DataFrame([
-            {"ÍTEM": "Aluguel", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Energia Elétrica", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Água", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Internet", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Material de limpeza", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Material para copa / Experiencia do cliente", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Material de escritório (papel maca)", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "IPTU", "MENSAL (R$)": 0.0}
+            {"ÍTEM": "4.1 Aluguel", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.2 Limpeza", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.3 Energia Elétrica", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.4 Água", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.5 Telefones/Interfones", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.6 Internet", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.7 Material de limpeza", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.8 Material para copa / Experiencia do cliente", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.9 Mat. Uso e Consumo", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.10 IPTU", "MENSAL (R$)": 0.0}
+        ]),
+        "5. Despesas Administrativas": pd.DataFrame([
+            {"ÍTEM": "5.1 Serviços de terceiros PJ e PF", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "5.2 Serviços Tercerizados de Fisioterapia", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "5.3 Contribuições associativas", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "5.4 Outras Consultorias", "MENSAL (R$)": 0.0}
+        ]),
+        "6. Despesas com TI": pd.DataFrame([
+            {"ÍTEM": "6.1 Sistemas de gestão", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "6.2 LOCAÇÃO DE impressoras", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "6.4 Chat bot / recursos de automação", "MENSAL (R$)": 0.0}
+        ]),
+        "7. Despesas bancárias": pd.DataFrame([
+            {"ÍTEM": "7.1 Taxa administrativa de contas", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "7.2 Máquinas de cartão", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "7.3 Iof / juros", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "7.4 Outras despesas", "MENSAL (R$)": 0.0}
         ]),
         "8. Marketing e vendas": pd.DataFrame([
-            {"ÍTEM": "Agência", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Eventos", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Tráfego Pago", "MENSAL (R$)": 0.0}
-        ]),
-        "Despesas Administrativas": pd.DataFrame([
-            {"ÍTEM": "Contador", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Outras Consultorias", "MENSAL (R$)": 0.0}
-        ]),
-        "Despesas com TI": pd.DataFrame([
-            {"ÍTEM": "Sistemas de gestão", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Chat bot / recursos de automação", "MENSAL (R$)": 0.0}
-        ]),
-        "Manutenção e Conservação": pd.DataFrame([
-            {"ÍTEM": "Elevadores", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Coleta de lixo hospitalar", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Manutenção de equipamentos", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Pinturas", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Jardins", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "Extintores", "MENSAL (R$)": 0.0}
-        ]),
-        "Despesas Bancárias": pd.DataFrame([
-            {"ÍTEM": "Taxa administrativa de contas", "MENSAL (R$)": 0.0}
-        ]),
-        "Seguros": pd.DataFrame([
-            {"ÍTEM": "Seguros do estabelecimento", "MENSAL (R$)": 0.0}
+            {"ÍTEM": "8.1 Agência", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "8.2 site", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "8.3 Campanhas", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "8.4 Outras despesas", "MENSAL (R$)": 0.0}
         ])
     }
     st.session_state["protocolos_db"] = []
@@ -373,10 +400,9 @@ def gerar_pdf_ficha_tecnica(nome_servico, preco, custo_total, lucro, margem, imp
 # ==========================================
 with st.sidebar:    
     
-    # ADICIONE ESTAS 3 LINHAS AQUI (Controlando o tamanho com o width)
     if os.path.exists(CAMINHO_LOGO):
-        st.image(CAMINHO_LOGO, width=220) # Aumente ou diminua este número à vontade
-        st.write("") # Apenas para dar um respiro antes do texto abaixo
+        st.image(CAMINHO_LOGO, width=220) 
+        st.write("") 
     
     st.markdown(f"👤 Logado como: **{ID_CLIENTE}**")
     if st.button("🚪 Sair (Logout)", use_container_width=True):
@@ -394,7 +420,7 @@ with st.sidebar:
             "3. Registro de Equipamentos",
             "4. Insumos e Materiais",
             "5. Impostos e Taxas",
-            "6. Protocolos (Jornadas) 🚀"
+            "6. Protocolos (Jornadas)"
         ]
     )
     st.divider()
@@ -621,14 +647,12 @@ def render_ficha_tecnica():
                 st.latex(rf"Impostos ({taxa_imposto_pct}\%) = {valor_imposto:.2f}")
                 st.latex(rf"Taxa\ Cartão ({taxa_cartao_pct}\%) = {valor_taxa_cartao:.2f}")
                 st.latex(rf"Comissão ({taxa_comissao_pct}\%) = {valor_comissao:.2f}")
-                # CAIXA AZUL REMOVIDA AQUI: st.info para st.markdown
                 st.markdown(f"**Resultado Líquido:** R$ {resultado_liquido:.2f} (O que sobra após taxas de venda)")
 
             with c_mem2:
                 st.write("**2. Divisão do Resultado Líquido:**")
                 st.latex(rf"Repasse\ ao\ Médico ({repasse_percentual}\%) = {valor_repasse_medico:.2f}")
                 st.latex(rf"Custo\ Operacional = {custo_total_servico:.2f}")
-                # CAIXA VERDE REMOVIDA AQUI: st.success para st.markdown
                 st.markdown(f"**Lucro Final:** R$ {lucro:.2f} (O que sobra no caixa da clínica)")
             
             st.markdown("---")
@@ -677,7 +701,6 @@ def render_ficha_tecnica():
         )
 
         if servicos_selecionados and metricas_selecionadas:
-            # CAIXA VERDE REMOVIDA AQUI: st.success para st.write
             st.write(f"👁️ Exibindo dados de **{len(servicos_selecionados)}** de **{total_cadastrados}** serviços cadastrados.")
             
             dados_comp = []
@@ -1090,7 +1113,7 @@ def render_custos_fixos():
     with col_t2:
         if st.button("💾 Salvar na Nuvem", type="primary", use_container_width=True):
             salvar_estado_nuvem()
-            st.success("Custos sincronizados!")
+            st.success("Custos e Salas sincronizados!")
 
     def renderizar_categoria_dinamica(titulo, chave):
         with st.expander(titulo, expanded=False):
@@ -1137,31 +1160,18 @@ def render_custos_fixos():
         tot_cat = pd.to_numeric(df_atual["MENSAL (R$)"], errors="coerce").fillna(0.0).sum() if not df_atual.empty else 0.0
         despesa_mensal_media += tot_cat
 
-    horas_diarias = st.session_state.get("horas_diarias", 8.0)
-    dias_semana = st.session_state.get("dias_semana", 5.0)
-    qtd_salas = st.session_state.get("qtd_salas", 14.0)
-
-    horas_semanais = horas_diarias * dias_semana
-    horas_mensais = horas_semanais * 4.5
     despesa_anual = despesa_mensal_media * 12
 
-    custo_hora_clinica = despesa_mensal_media / horas_mensais if horas_mensais > 0 else 0.0
-    custo_dia_clinica = custo_hora_clinica * horas_diarias
-    custo_hora_atendimento = custo_hora_clinica / qtd_salas if qtd_salas > 0 else 0.0
-
-    tab_dash, tab_lanc, tab_cat = st.tabs(["📊 Dashboard Geral", "📝 Lançamentos e Hora Clínica", "🛠️ Criar Categorias"])
+    # Tabs de Custos Fixos
+    tab_dash, tab_lanc, tab_salas, tab_cat = st.tabs(["📊 Dashboard Geral", "📝 Despesas Mensais", "🏢 Rateio por M² (Salas)", "🛠️ Criar Categorias"])
 
     with tab_dash:
-        st.markdown(f"<h3 style='color: {COR_CABECALHO};'>Visão Geral dos Custos</h3>", unsafe_allow_html=True)
-        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-        kpi1.metric("Despesa Mensal", f"R$ {despesa_mensal_media:,.2f}")
-        kpi2.metric("Despesa Anual", f"R$ {despesa_anual:,.2f}")
-        kpi3.metric("Custo Hora Clínica", f"R$ {custo_hora_clinica:,.2f}")
-        kpi4.metric("Custo Hora (por Sala)", f"R$ {custo_hora_atendimento:,.2f}")
+        st.markdown(f"<h3 style='color: {COR_CABECALHO};'>Visão Geral dos Custos Globais</h3>", unsafe_allow_html=True)
+        kpi1, kpi2 = st.columns(2)
+        kpi1.metric("Despesa Mensal Consolidada", f"R$ {despesa_mensal_media:,.2f}")
+        kpi2.metric("Despesa Anual Projetada", f"R$ {despesa_anual:,.2f}")
 
         st.write("")
-        st.write("")
-
         dados_completos = []
         for cat, df_cat in st.session_state["df_custos_categorias"].items():
             for _, row in df_cat.iterrows():
@@ -1169,7 +1179,7 @@ def render_custos_fixos():
                 if valor > 0: dados_completos.append({"Categoria": cat, "Subitem": row["ÍTEM"], "Valor (R$)": valor})
 
         if not dados_completos:
-            st.warning("Adicione valores na aba de Lançamentos para ver o Dashboard ganhar vida.")
+            st.warning("Adicione valores na aba de Despesas Mensais para ver o Dashboard ganhar vida.")
         else:
             df_dash = pd.DataFrame(dados_completos)
             
@@ -1190,10 +1200,15 @@ def render_custos_fixos():
                 with col_graf1:
                     st.markdown("<h5 style='text-align: center;'>Distribuição Macro</h5>", unsafe_allow_html=True)
                     df_agrupado_cat = df_filtrado.groupby("Categoria", as_index=False)["Valor (R$)"].sum()
-                    fig_donut = px.pie(df_agrupado_cat, values='Valor (R$)', names='Categoria', hole=0.65, color_discrete_sequence=PALETA_GRAFICOS)
-                    fig_donut.update_traces(textinfo='percent', hoverinfo='label+percent+value', textfont_size=14, marker=dict(line=dict(color='#FFFFFF', width=2)))
-                    fig_donut.update_layout(showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5), margin=dict(t=20, b=20, l=20, r=20), annotations=[dict(text=f"<b>R$ {total_filtrado:,.0f}</b>", x=0.5, y=0.5, font_size=18, showarrow=False)])
-                    st.plotly_chart(fig_donut, use_container_width=True)
+                    df_agrupado_cat = df_agrupado_cat.sort_values(by="Valor (R$)", ascending=True)
+                    max_val_cat = df_agrupado_cat["Valor (R$)"].max()
+                    
+                    fig_bar_cat = px.bar(df_agrupado_cat, x="Valor (R$)", y="Categoria", color="Categoria", orientation="h", text="Valor (R$)", color_discrete_sequence=PALETA_GRAFICOS)
+                    fig_bar_cat.update_xaxes(range=[0, max_val_cat * 1.35]) 
+                    fig_bar_cat.update_traces(texttemplate='<b>R$ %{text:,.2f}</b>', textposition='outside', textfont=dict(size=12))
+                    fig_bar_cat.update_layout(xaxis_title="", yaxis_title="", xaxis=dict(showgrid=True, gridcolor='#e8e8e8', zeroline=False), yaxis=dict(showgrid=False), plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", height=max(350, len(df_agrupado_cat) * 35), margin=dict(l=10, r=20, t=20, b=10), showlegend=False)
+                    
+                    st.plotly_chart(fig_bar_cat, use_container_width=True)
 
                 with col_graf2:
                     st.markdown("<h5 style='text-align: center;'>Detalhamento por Despesa</h5>", unsafe_allow_html=True)
@@ -1211,19 +1226,98 @@ def render_custos_fixos():
                     st.dataframe(df_tabela.style.format({"Valor (R$)": "R$ {:,.2f}", "% do Total": "{:.1%}"}), use_container_width=True, hide_index=True)
 
     with tab_lanc:
-        st.subheader("⏱️ Configuração da Hora Clínica")
-        col_p1, col_p2, col_p3 = st.columns(3)
-        st.session_state["horas_diarias"] = col_p1.number_input("Horas Diárias", value=float(horas_diarias), step=0.5, format="%.1f")
-        st.session_state["dias_semana"] = col_p2.number_input("Dias na semana", value=float(dias_semana), step=0.5, format="%.1f")
-        st.session_state["qtd_salas"] = col_p3.number_input("Qtd de Salas", value=float(qtd_salas), step=1.0, format="%.1f")
-
-        st.divider()
         st.subheader("📝 Preenchimento de Custos Mensais")
         if not st.session_state["df_custos_categorias"]:
             st.info("Nenhuma categoria. Adicione na aba de Categorias.")
         else:
             for i, categoria in enumerate(st.session_state["df_custos_categorias"].keys()):
                 renderizar_categoria_dinamica(categoria, f"cat_dyn_{i}")
+
+    with tab_salas:
+        st.subheader("🏢 Rateio de Custos por Espaço Produtivo")
+        st.markdown("Configure as salas da sua clínica para descobrir o custo exato de cada espaço em M², por turno e por hora clínica. **Para calcular o número de salas com potencial produtivo e metragem total, basta adicionar as salas abaixo.**")
+
+        # Configurações Globais de Capacidade
+        col_c1, col_c2, col_c3, col_c4 = st.columns(4)
+        semanas_mes = col_c1.number_input("Semanas por Mês", value=4.2, step=0.1, help="Padrão utilizado na planilha é 4.2 semanas.")
+        turnos_semana = col_c2.number_input("Turnos na Semana", value=10.0, step=1.0, help="Ex: 2 turnos (Manhã/Tarde) x 5 dias = 10 turnos por sala")
+        ocupacao_pct = col_c3.number_input("% Ocupação Estimada", value=50.0, step=5.0, max_value=100.0)
+        horas_semanais_config = col_c4.number_input("Horas na Semana (Sala)", value=40.0, step=1.0, help="Quantas horas uma única sala funciona na semana.")
+
+        st.divider()
+        st.markdown("**1. Edite suas Salas e Metragens (M²):**")
+        df_salas_edit = st.data_editor(
+            st.session_state.get("df_salas", pd.DataFrame()),
+            num_rows="dynamic",
+            use_container_width=True,
+            column_config={
+                "Sala": st.column_config.TextColumn("Nome da Sala Produtiva", required=True),
+                "M2": st.column_config.NumberColumn("Metragem (M²)", min_value=1.0, required=True, format="%.1f")
+            }
+        )
+        st.session_state["df_salas"] = df_salas_edit
+
+        # Processamento e Lógica de Planilha
+        df_salas_calc = df_salas_edit.copy()
+        
+        # O total produtivo é a soma dos M2 de todas as salas preenchidas.
+        total_m2 = df_salas_calc["M2"].sum() if not df_salas_calc.empty else 0
+        qtd_salas_produtivas = len(df_salas_calc)
+        
+        # Custo do M2 Geral = Despesa Fixa / Total da Metragem
+        custo_por_m2 = despesa_mensal_media / total_m2 if total_m2 > 0 else 0
+
+        # Lógica de Horas Globais e Ocupação
+        horas_mensais_por_sala = horas_semanais_config * semanas_mes
+        horas_totais_todas_salas = horas_mensais_por_sala * qtd_salas_produtivas
+        horas_estimadas_ocupacao = horas_totais_todas_salas * (ocupacao_pct / 100)
+        
+        hora_clinica_global_real = despesa_mensal_media / horas_estimadas_ocupacao if horas_estimadas_ocupacao > 0 else 0
+
+        if not df_salas_calc.empty:
+            df_salas_calc["Custo Mensal por M2/Sala"] = df_salas_calc["M2"] * custo_por_m2
+            df_salas_calc["Custo Turno Mensal"] = df_salas_calc["Custo Mensal por M2/Sala"] / turnos_semana if turnos_semana > 0 else 0
+            df_salas_calc["Custo Hora /Sala"] = df_salas_calc["Custo Mensal por M2/Sala"] / horas_mensais_por_sala if horas_mensais_por_sala > 0 else 0
+
+        st.markdown("**2. Indicadores Consolidados:**")
+        k_s1, k_s2, k_s3, k_s4 = st.columns(4)
+        k_s1.metric("Total Metragem Produtiva", f"{total_m2:.1f} M²")
+        k_s2.metric("Qtd Salas Produtivas", f"{qtd_salas_produtivas}")
+        k_s3.metric("Custo por M²", f"R$ {custo_por_m2:,.2f}")
+        k_s4.metric("Hora Clínica (com Ocupação)", f"R$ {hora_clinica_global_real:,.2f}", help=f"Considerando {ocupacao_pct}% de preenchimento da agenda de todas as salas juntas.")
+
+        st.write("")
+        st.markdown("**3. Tabela de Rateio Completo (Valores Finais):**")
+        if not df_salas_calc.empty:
+            st.dataframe(
+                df_salas_calc.style.format({
+                    "M2": "{:.1f}",
+                    "Custo Mensal por M2/Sala": "R$ {:,.2f}",
+                    "Custo Turno Mensal": "R$ {:,.2f}",
+                    "Custo Hora /Sala": "R$ {:,.2f}"
+                }),
+                use_container_width=True, hide_index=True
+            )
+
+            st.write("")
+            st.markdown("**4. Gráfico: Custo Mensal por M2/Sala**")
+            
+            fig_salas = px.bar(
+                df_salas_calc.sort_values("Custo Mensal por M2/Sala", ascending=True),
+                x="Custo Mensal por M2/Sala",
+                y="Sala",
+                orientation="h",
+                text="Custo Mensal por M2/Sala",
+                color_discrete_sequence=[COR_CABECALHO]
+            )
+            max_val_sala = df_salas_calc["Custo Mensal por M2/Sala"].max()
+            fig_salas.update_xaxes(range=[0, max_val_sala * 1.35]) 
+            fig_salas.update_traces(texttemplate='<b>R$ %{text:,.2f}</b>', textposition='outside', textfont=dict(size=12))
+            fig_salas.update_layout(xaxis_title="", yaxis_title="", xaxis=dict(showgrid=True, gridcolor='#e8e8e8', zeroline=False), yaxis=dict(showgrid=False), plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", height=max(350, len(df_salas_calc) * 45), margin=dict(l=10, r=20, t=20, b=10), showlegend=False)
+            
+            st.plotly_chart(fig_salas, use_container_width=True)
+        else:
+            st.info("Adicione pelo menos uma sala na tabela acima para gerar o rateio.")
 
     with tab_cat:
         st.info("Crie novas categorias para organizar os lançamentos de custos fixos.")
@@ -1268,7 +1362,6 @@ def render_custos_fixos():
 
 def render_equipamentos():
     cabecalho_padrao("REGISTRO DE EQUIPAMENTOS")
-    st.warning("📌 Pendência Documentada: O método contábil exato de depreciação (vida útil vs taxa anual vs sessão) será refinado em atualizações futuras.")
     
     if st.button("💾 Salvar Alterações de Equip. na Nuvem", type="primary"):
         salvar_estado_nuvem()
@@ -1315,7 +1408,7 @@ def render_equipamentos():
             novo_vida_eq = c3.number_input("Vida Útil (Anos)", value=float(row_eq["Tempo de vida útil (anos)"]), min_value=1.0, step=1.0, format="%.1f", key="edit_vida_eq")
             novo_cap_eq = c1.number_input("Capacidade Aplicações / dia (R$)", value=float(row_eq["Capacidade de Aplicações / dia (R$)"]), min_value=0.0, step=10.0, format="%.2f", key="edit_cap_eq")
             novo_apps_eq = c2.number_input("Aplicações (média diária)", value=float(row_eq["Aplicações (média diária)"]), min_value=1.0, step=1.0, format="%.1f", key="edit_apps_eq")
-            novo_vida_eq = c3.number_input("Manutenção Anual (R$)", value=float(row_eq["Custo anual de manutenção (R$)"]), min_value=0.0, step=10.0, format="%.2f", key="edit_manut_eq")
+            novo_manut_eq = c3.number_input("Manutenção Anual (R$)", value=float(row_eq["Custo anual de manutenção (R$)"]), min_value=0.0, step=10.0, format="%.2f", key="edit_manut_eq")
             
             st.write("")
             if st.button("💾 Salvar Edição", key="btn_salvar_edit_eq", use_container_width=True):
@@ -1701,4 +1794,4 @@ elif modulo_selecionado == "2. Custos Fixos e Hora Clínica": render_custos_fixo
 elif modulo_selecionado == "3. Registro de Equipamentos": render_equipamentos()
 elif modulo_selecionado == "4. Insumos e Materiais": render_insumos()
 elif modulo_selecionado == "5. Impostos e Taxas": render_taxas()
-elif modulo_selecionado == "6. Protocolos (Jornadas) 🚀": render_protocolos()
+elif modulo_selecionado == "6. Protocolos (Jornadas)": render_protocolos()
