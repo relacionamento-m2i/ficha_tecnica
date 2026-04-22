@@ -1247,20 +1247,43 @@ def render_custos_fixos():
         horas_semanais_config = col_c4.number_input("Horas na Semana (Sala)", value=40.0, step=1.0, help="Quantas horas uma única sala funciona na semana.")
 
         st.divider()
-        st.markdown("**1. Edite suas Salas e Metragens (M²):**")
-        df_salas_edit = st.data_editor(
-            st.session_state.get("df_salas", pd.DataFrame()),
-            num_rows="dynamic",
-            use_container_width=True,
-            column_config={
-                "Sala": st.column_config.TextColumn("Nome da Sala Produtiva", required=True),
-                "M2": st.column_config.NumberColumn("Metragem (M²)", min_value=1.0, required=True, format="%.1f")
-            }
-        )
-        st.session_state["df_salas"] = df_salas_edit
+        st.markdown("**1. Gerencie suas Salas e Metragens (M²):**")
+        
+        df_salas_atual = st.session_state.get("df_salas", pd.DataFrame(columns=["Sala", "M2"]))
+        registros_salas = df_salas_atual.to_dict('records')
+
+        if registros_salas:
+            for idx, reg in enumerate(registros_salas):
+                c1, c2, c3 = st.columns([5, 3, 1])
+                novo_nome = c1.text_input("Sala", value=reg['Sala'], key=f"edit_sala_nome_{idx}", label_visibility="collapsed")
+                nova_m2 = c2.number_input("M²", value=float(reg['M2']), min_value=1.0, step=0.5, format="%.1f", key=f"edit_sala_m2_{idx}", label_visibility="collapsed")
+                
+                registros_salas[idx]['Sala'] = novo_nome
+                registros_salas[idx]['M2'] = nova_m2
+                
+                if c3.button("🗑️", key=f"del_sala_{idx}"):
+                    registros_salas.pop(idx)
+                    st.session_state["df_salas"] = pd.DataFrame(registros_salas) if registros_salas else pd.DataFrame(columns=["Sala", "M2"])
+                    st.rerun()
+                    
+            st.session_state["df_salas"] = pd.DataFrame(registros_salas) if registros_salas else pd.DataFrame(columns=["Sala", "M2"])
+        else:
+            st.info("Nenhuma sala cadastrada.")
+
+        st.markdown("---")
+        with st.form("form_add_sala", clear_on_submit=True):
+            st.caption("Adicionar nova sala:")
+            c1, c2, c3 = st.columns([4, 2, 2])
+            n_sala = c1.text_input("Nome da Sala (Ex: Sala 6 - Avaliação)")
+            n_m2 = c2.number_input("Metragem (M²)", min_value=1.0, step=0.5, format="%.1f")
+            if c3.form_submit_button("➕ Adicionar Sala"):
+                if n_sala:
+                    registros_salas.append({"Sala": n_sala, "M2": float(n_m2)})
+                    st.session_state["df_salas"] = pd.DataFrame(registros_salas)
+                    st.rerun()
 
         # Processamento e Lógica de Planilha
-        df_salas_calc = df_salas_edit.copy()
+        df_salas_calc = st.session_state["df_salas"].copy()
         
         # O total produtivo é a soma dos M2 de todas as salas preenchidas.
         total_m2 = df_salas_calc["M2"].sum() if not df_salas_calc.empty else 0
