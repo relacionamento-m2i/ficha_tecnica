@@ -216,17 +216,7 @@ def inicializar_padroes_caso_vazio():
         {"Sala": "Sala 5 - Consultório Terceiros", "M2": 12.0}
     ])
     
-    st.session_state["df_custos_categorias"] = {}
-    st.session_state["protocolos_db"] = []
-    salvar_estado_nuvem()
-
-if "dados_carregados" not in st.session_state or st.session_state["dados_carregados"] == False:
-    carregou_nuvem = carregar_estado_nuvem()
-    if not carregou_nuvem:
-        inicializar_padroes_caso_vazio()
-        
-    # --- INÍCIO DA ATUALIZAÇÃO SEGURA (MANTÉM SEUS DADOS) ---
-    novas_categorias_padrao = {
+    st.session_state["df_custos_categorias"] = {
         "1. Despesa com pessoal": pd.DataFrame([
             {"ÍTEM": "1.1 Total da folha de pagamento clt (com 13º)", "MENSAL (R$)": 0.0},
             {"ÍTEM": "1.2 Despesas com alimentação e transporte", "MENSAL (R$)": 0.0},
@@ -288,14 +278,14 @@ if "dados_carregados" not in st.session_state or st.session_state["dados_carrega
             {"ÍTEM": "8.4 Outras despesas", "MENSAL (R$)": 0.0}
         ])
     }
+    st.session_state["protocolos_db"] = []
+    salvar_estado_nuvem()
 
-    # Adiciona a categoria nova apenas se ela ainda não existir no banco
-    for cat_nome, cat_df in novas_categorias_padrao.items():
-        if cat_nome not in st.session_state["df_custos_categorias"]:
-            st.session_state["df_custos_categorias"][cat_nome] = cat_df
-
+if "dados_carregados" not in st.session_state or st.session_state["dados_carregados"] == False:
+    carregou_nuvem = carregar_estado_nuvem()
+    if not carregou_nuvem:
+        inicializar_padroes_caso_vazio()
     st.session_state["dados_carregados"] = True
-    # --- FIM DA ATUALIZAÇÃO SEGURA ---
 
 if "dias_uteis_eq" not in st.session_state:
     st.session_state["dias_uteis_eq"] = 22.0
@@ -1183,7 +1173,8 @@ def render_custos_fixos():
 
         st.write("")
         dados_completos = []
-        for cat, df_cat in st.session_state["df_custos_categorias"].items():
+        for cat in sorted(st.session_state["df_custos_categorias"].keys()):
+            df_cat = st.session_state["df_custos_categorias"][cat]
             for _, row in df_cat.iterrows():
                 valor = float(row.get("MENSAL (R$)", 0.0))
                 if valor > 0: dados_completos.append({"Categoria": cat, "Subitem": row["ÍTEM"], "Valor (R$)": valor})
@@ -1240,7 +1231,8 @@ def render_custos_fixos():
         if not st.session_state["df_custos_categorias"]:
             st.info("Nenhuma categoria. Adicione na aba de Categorias.")
         else:
-            for i, categoria in enumerate(st.session_state["df_custos_categorias"].keys()):
+            categorias_ordenadas = sorted(st.session_state["df_custos_categorias"].keys())
+            for i, categoria in enumerate(categorias_ordenadas):
                 renderizar_categoria_dinamica(categoria, f"cat_dyn_{i}")
 
     with tab_salas:
@@ -1331,7 +1323,7 @@ def render_custos_fixos():
 
     with tab_cat:
         st.info("Crie novas categorias para organizar os lançamentos de custos fixos.")
-        opcoes_cat = list(st.session_state["df_custos_categorias"].keys())
+        opcoes_cat = sorted(list(st.session_state["df_custos_categorias"].keys()))
         
         tab_add_c, tab_ren_c, tab_del_c = st.tabs(["➕ Adicionar", "✏️ Renomear", "🗑️ Excluir"])
         with tab_add_c:
