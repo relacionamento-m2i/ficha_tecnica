@@ -216,7 +216,17 @@ def inicializar_padroes_caso_vazio():
         {"Sala": "Sala 5 - Consultório Terceiros", "M2": 12.0}
     ])
     
-    st.session_state["df_custos_categorias"] = {
+    st.session_state["df_custos_categorias"] = {}
+    st.session_state["protocolos_db"] = []
+    salvar_estado_nuvem()
+
+if "dados_carregados" not in st.session_state or st.session_state["dados_carregados"] == False:
+    carregou_nuvem = carregar_estado_nuvem()
+    if not carregou_nuvem:
+        inicializar_padroes_caso_vazio()
+        
+    # --- INÍCIO DA ATUALIZAÇÃO SEGURA (MANTÉM SEUS DADOS) ---
+    novas_categorias_padrao = {
         "1. Despesa com pessoal": pd.DataFrame([
             {"ÍTEM": "1.1 Total da folha de pagamento clt (com 13º)", "MENSAL (R$)": 0.0},
             {"ÍTEM": "1.2 Despesas com alimentação e transporte", "MENSAL (R$)": 0.0},
@@ -278,14 +288,14 @@ def inicializar_padroes_caso_vazio():
             {"ÍTEM": "8.4 Outras despesas", "MENSAL (R$)": 0.0}
         ])
     }
-    st.session_state["protocolos_db"] = []
-    salvar_estado_nuvem()
 
-if "dados_carregados" not in st.session_state or st.session_state["dados_carregados"] == False:
-    carregou_nuvem = carregar_estado_nuvem()
-    if not carregou_nuvem:
-        inicializar_padroes_caso_vazio()
+    # Adiciona a categoria nova apenas se ela ainda não existir no banco
+    for cat_nome, cat_df in novas_categorias_padrao.items():
+        if cat_nome not in st.session_state["df_custos_categorias"]:
+            st.session_state["df_custos_categorias"][cat_nome] = cat_df
+
     st.session_state["dados_carregados"] = True
+    # --- FIM DA ATUALIZAÇÃO SEGURA ---
 
 if "dias_uteis_eq" not in st.session_state:
     st.session_state["dias_uteis_eq"] = 22.0
