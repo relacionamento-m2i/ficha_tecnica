@@ -220,7 +220,7 @@ def inicializar_padroes_caso_vazio():
         "1. Despesa com pessoal": pd.DataFrame([
             {"ÍTEM": "1.1 Total da folha de pagamento clt (com 13º)", "MENSAL (R$)": 0.0},
             {"ÍTEM": "1.2 Despesas com alimentação e transporte", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "1.3 Reserva para recisões (6%)", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "1.3 Reserva para Rescisões (6%)", "MENSAL (R$)": 0.0},
             {"ÍTEM": "1.4 Pro-labore", "MENSAL (R$)": 0.0},
             {"ÍTEM": "1.5 Descanso sem Remuneração", "MENSAL (R$)": 0.0},
             {"ÍTEM": "1.6 FGTS", "MENSAL (R$)": 0.0},
@@ -237,12 +237,12 @@ def inicializar_padroes_caso_vazio():
             {"ÍTEM": "3.3 Coleta de lixo hospitalar", "MENSAL (R$)": 0.0},
             {"ÍTEM": "3.4 Manutenção de equipamentos", "MENSAL (R$)": 0.0},
             {"ÍTEM": "3.5 Pinturas", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "3.6 jardins", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.6 Jardins", "MENSAL (R$)": 0.0},
             {"ÍTEM": "3.7 Extintores", "MENSAL (R$)": 0.0},
             {"ÍTEM": "3.8 Reserva de Equipamentos", "MENSAL (R$)": 0.0},
             {"ÍTEM": "3.9 Outras Despesas", "MENSAL (R$)": 0.0}
         ]),
-        "4. Despesas estrutura e de consumo": pd.DataFrame([
+        "4. Despesas de Estrutura e Consumo": pd.DataFrame([
             {"ÍTEM": "4.1 Aluguel", "MENSAL (R$)": 0.0},
             {"ÍTEM": "4.2 Limpeza", "MENSAL (R$)": 0.0},
             {"ÍTEM": "4.3 Energia Elétrica", "MENSAL (R$)": 0.0},
@@ -250,19 +250,19 @@ def inicializar_padroes_caso_vazio():
             {"ÍTEM": "4.5 Telefones/Interfones", "MENSAL (R$)": 0.0},
             {"ÍTEM": "4.6 Internet", "MENSAL (R$)": 0.0},
             {"ÍTEM": "4.7 Material de limpeza", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "4.8 Material para copa / Experiencia do cliente", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.8 Material para Copa / Experiência do Cliente", "MENSAL (R$)": 0.0},
             {"ÍTEM": "4.9 Mat. Uso e Consumo", "MENSAL (R$)": 0.0},
             {"ÍTEM": "4.10 IPTU", "MENSAL (R$)": 0.0}
         ]),
         "5. Despesas Administrativas": pd.DataFrame([
             {"ÍTEM": "5.1 Serviços de terceiros PJ e PF", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "5.2 Serviços Tercerizados de Fisioterapia", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "5.2 Serviços Terceirizados de Fisioterapia", "MENSAL (R$)": 0.0},
             {"ÍTEM": "5.3 Contribuições associativas", "MENSAL (R$)": 0.0},
             {"ÍTEM": "5.4 Outras Consultorias", "MENSAL (R$)": 0.0}
         ]),
         "6. Despesas com TI": pd.DataFrame([
             {"ÍTEM": "6.1 Sistemas de gestão", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "6.2 LOCAÇÃO DE impressoras", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "6.2 Locação de Impressoras", "MENSAL (R$)": 0.0},
             {"ÍTEM": "6.4 Chat bot / recursos de automação", "MENSAL (R$)": 0.0}
         ]),
         "7. Despesas bancárias": pd.DataFrame([
@@ -273,7 +273,7 @@ def inicializar_padroes_caso_vazio():
         ]),
         "8. Marketing e vendas": pd.DataFrame([
             {"ÍTEM": "8.1 Agência", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "8.2 site", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "8.2 Site", "MENSAL (R$)": 0.0},
             {"ÍTEM": "8.3 Campanhas", "MENSAL (R$)": 0.0},
             {"ÍTEM": "8.4 Outras despesas", "MENSAL (R$)": 0.0}
         ])
@@ -416,7 +416,7 @@ with st.sidebar:
         [
             "0. Início (Onboarding)",
             "1. Ficha Técnica (Precificação)",
-            "2. Custos Fixos e Hora Clínica",
+            "2. Estrutura de Custos e Formação da Hora Clínica",
             "3. Registro de Equipamentos",
             "4. Insumos e Materiais",
             "5. Impostos e Taxas",
@@ -681,7 +681,7 @@ def render_ficha_tecnica():
             st.write("**Fórmulas de Eficiência Financeira:**")
             st.latex(r"Margem\ (\%) = \left( \frac{Lucro\ Final}{Preço\ de\ Venda} \right) \times 100")
             st.latex(r"Preço\ Sugerido = \frac{Custo\ Operacional}{(1 - Taxas\%) \times (1 - Repasse\%)}")
-            st.caption("💡 O **Ponto de Equilíbrio** (Ponto de Equilíbrio) faz o caminho inverso para descobrir quanto você precisa cobrar para cobrir todos os custos e pagar o médico, ficando com lucro zero no final.")
+            st.caption("💡 O **Ponto de Equilíbrio** faz o caminho inverso para descobrir quanto você precisa cobrar para cobrir todos os custos e pagar o médico, ficando com lucro zero no final.")
 
         st.divider()
 
@@ -1507,19 +1507,25 @@ def render_equipamentos():
     if "Capacidade aplicações/dia" in df_calc.columns or "Capacidade de Aplicações / dia (R$)" in df_calc.columns:
         df_calc.rename(columns={
             "Capacidade aplicações/dia": "Capacidade de Aplicações / dia (Qtd)",
-            "Capacidade de Aplicações / dia (R$)": "Capacidade de Aplicações / dia (Qtd)"
+            "Capacidade de Aplicações / dia (R$)": "Capacidade de Aplicações / dia (Qtd)",
+            "Custo Seção": "Custo por Sessão" # Renomeia dinamicamente caso venha legado do banco
         }, inplace=True)
-        st.session_state["df_lista_equipamentos"] = df_calc.copy()
+    
+    # Garantir que se a coluna legado "Custo Seção" vier, ela seja renomeada
+    if "Custo Seção" in df_calc.columns:
+        df_calc.rename(columns={"Custo Seção": "Custo por Sessão"}, inplace=True)
+        
+    st.session_state["df_lista_equipamentos"] = df_calc.copy()
 
     if not df_calc.empty:
         df_calc["Montante Investido"] = df_calc["Valor de aquisição (R$)"] + (df_calc["Tempo de vida útil (anos)"] * df_calc.get("Custo anual de manutenção (R$)", 0.0))
         df_calc["Depreciação Mensal"] = df_calc.apply(lambda row: row["Montante Investido"] / (row.get("Tempo de vida útil (anos)", 1) * 12) if row.get("Tempo de vida útil (anos)", 0) > 0 else 0, axis=1)
-        df_calc["Custo Seção"] = df_calc.apply(lambda row: row["Depreciação Mensal"] / (row.get("Aplicações (média diária)", 1) * dias_uteis) if row.get("Aplicações (média diária)", 0) > 0 else 0, axis=1)
+        df_calc["Custo por Sessão"] = df_calc.apply(lambda row: row["Depreciação Mensal"] / (row.get("Aplicações (média diária)", 1) * dias_uteis) if row.get("Aplicações (média diária)", 0) > 0 else 0, axis=1)
         
         formato_tabela = {
             "Valor de aquisição (R$)": "R$ {:,.2f}", "Capacidade de Aplicações / dia (Qtd)": "{:,.2f}",
             "Custo anual de manutenção (R$)": "R$ {:,.2f}", "Montante Investido": "R$ {:,.2f}",
-            "Depreciação Mensal": "R$ {:,.2f}", "Custo Seção": "R$ {:,.2f}"
+            "Depreciação Mensal": "R$ {:,.2f}", "Custo por Sessão": "R$ {:,.2f}"
         }
         st.dataframe(df_calc.style.format(formato_tabela, precision=2), use_container_width=True, hide_index=True)
 
@@ -1853,7 +1859,7 @@ def render_protocolos():
 # ==========================================
 if modulo_selecionado == "0. Início (Onboarding)": render_onboarding()
 elif modulo_selecionado == "1. Ficha Técnica (Precificação)": render_ficha_tecnica()
-elif modulo_selecionado == "2. Custos Fixos e Hora Clínica": render_custos_fixos()
+elif modulo_selecionado == "2. Estrutura de Custos e Formação da Hora Clínica": render_custos_fixos()
 elif modulo_selecionado == "3. Registro de Equipamentos": render_equipamentos()
 elif modulo_selecionado == "4. Insumos e Materiais": render_insumos()
 elif modulo_selecionado == "5. Impostos e Taxas": render_taxas()
