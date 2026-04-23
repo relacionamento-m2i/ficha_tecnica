@@ -39,7 +39,7 @@ COR_FUNDO_CLARO = "#E0F2F4"
 COR_TEXTO_BRANCO = "#FFFFFF"
 PALETA_GRAFICOS = ['#159EAC', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#9b59b6']
 
-# Mude a linha 39 para:
+# CONFIGURAÇÃO DA LOGO (Caminho relativo para nuvem)
 CAMINHO_LOGO = "logo.png"
 
 st.markdown(f"""
@@ -1782,9 +1782,24 @@ def render_protocolos():
             "Lucro": "R$ {:,.2f}", "% Lucro": "{:.1%}"
         }), use_container_width=True, hide_index=True)
 
-        if st.button("🗑️ Limpar Pacote"):
-            st.session_state.protocolo_atual["itens"] = []
-            st.rerun()
+        # --- BOTÕES DE GERENCIAMENTO DO PACOTE ---
+        c_btn1, c_btn2 = st.columns([1, 1])
+        with c_btn1:
+            if st.button("🗑️ Limpar Todo o Pacote", use_container_width=True):
+                st.session_state.protocolo_atual["itens"] = []
+                st.rerun()
+                
+        with c_btn2:
+            with st.popover("❌ Remover Item Específico"):
+                opcoes_rem = [f"{i} - {item['servico']} ({item['qtd']}x)" for i, item in enumerate(st.session_state.protocolo_atual["itens"])]
+                if opcoes_rem:
+                    item_rem = st.selectbox("Selecione para remover:", opcoes_rem, label_visibility="collapsed")
+                    if st.button("Confirmar Remoção", type="primary", use_container_width=True):
+                        idx = int(item_rem.split(" - ")[0])
+                        st.session_state.protocolo_atual["itens"].pop(idx)
+                        st.rerun()
+                else:
+                    st.write("Nenhum item para remover.")
 
         # --- 4. RESUMO DE REPASSES ---
         st.divider()
@@ -1854,8 +1869,30 @@ def render_protocolos():
                 use_container_width=True
             )
 
+    st.divider()
+    st.markdown("### 📂 Arquivo de Protocolos Salvos")
+    protocolos_salvos = st.session_state.get("protocolos_db", [])
+    
+    if protocolos_salvos:
+        for idx, prot in enumerate(protocolos_salvos):
+            # Calcula o valor total do protocolo salvo para exibir no cabeçalho
+            total_prot = sum(
+                item['qtd'] * db_servicos.get(item['servico'], {}).get('preco_escolhido', 0.0) * (1 - item['desconto']/100) 
+                for item in prot.get('itens', []) if item['servico'] in db_servicos
+            )
+            with st.expander(f"📄 {prot.get('nome', 'Sem Nome')} - R$ {total_prot:,.2f}"):
+                st.write(f"**Benefício:** {prot.get('beneficio', '')}")
+                st.write("**Itens:**")
+                for it in prot.get('itens', []):
+                    st.write(f"- {it['qtd']}x {it['servico']} (Desc: {it['desconto']}%)")
+                
+                if st.button("🗑️ Excluir Protocolo do Arquivo", key=f"del_prot_{idx}"):
+                    st.session_state.protocolos_db.pop(idx)
+                    salvar_estado_nuvem()
+                    st.rerun()
     else:
-        st.info("Adicione itens acima para começar a montar o protocolo.")
+        st.info("Nenhum protocolo arquivado ainda.")
+
 
 # ==========================================
 # ROTEAMENTO
