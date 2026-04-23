@@ -176,7 +176,7 @@ def carregar_estado_nuvem():
 
                 st.session_state["df_lista_equipamentos"] = pd.DataFrame(equip_data) if equip_data else pd.DataFrame(columns=[
                     "Nome do equipamento", "Valor de aquisição (R$)", "Tempo de vida útil (anos)", 
-                    "Capacidade de Aplicações / dia (R$)", "Aplicações (média diária)", "Custo anual de manutenção (R$)"
+                    "Capacidade de Aplicações / dia (Qtd)", "Aplicações (média diária)", "Custo anual de manutenção (R$)"
                 ])
 
                 st.session_state["df_lista_insumos"] = pd.DataFrame(insumos_data) if insumos_data else pd.DataFrame(columns=[
@@ -204,7 +204,7 @@ def df_outros_custos_padrao(): return pd.DataFrame(columns=["Tipo", "Descrição
 
 def inicializar_padroes_caso_vazio():
     st.session_state["db_servicos"] = {}
-    st.session_state["df_lista_equipamentos"] = pd.DataFrame(columns=["Nome do equipamento", "Valor de aquisição (R$)", "Tempo de vida útil (anos)", "Capacidade de Aplicações / dia (R$)", "Aplicações (média diária)", "Custo anual de manutenção (R$)"])
+    st.session_state["df_lista_equipamentos"] = pd.DataFrame(columns=["Nome do equipamento", "Valor de aquisição (R$)", "Tempo de vida útil (anos)", "Capacidade de Aplicações / dia (Qtd)", "Aplicações (média diária)", "Custo anual de manutenção (R$)"])
     st.session_state["df_lista_insumos"] = pd.DataFrame(columns=["Material", "qt", "valor"])
     st.session_state["df_lista_taxas"] = pd.DataFrame(columns=["Taxa", "Porcentagem (%)"])
     
@@ -478,13 +478,35 @@ def render_ficha_tecnica():
     if "tempo_min" not in st.session_state or st.session_state.get("servico_atual") not in lista_nomes_servicos:
         carregar_servico_para_estado(lista_nomes_servicos[0])
 
+    def trocar_e_salvar_servico():
+        servico_antigo = st.session_state.get("servico_atual")
+        if servico_antigo and servico_antigo in st.session_state["db_servicos"]:
+            st.session_state["db_servicos"][servico_antigo] = {
+                "tempo_min": st.session_state.get("tempo_min", 60.0),
+                "maquinas": st.session_state.get("df_ficha_maquinas", df_maquinas_padrao()).to_dict(orient="records"),
+                "repasse_fixo": st.session_state.get("repasse_fixo", 0.0),
+                "repasse_percentual": st.session_state.get("repasse_percentual", 0.0),
+                "custo_aluguel": st.session_state.get("custo_aluguel", 0.0),
+                "insumos": st.session_state.get("df_ficha_insumos", df_insumos_padrao()).to_dict(orient="records"),
+                "outros_custos": st.session_state.get("df_ficha_outros_custos", df_outros_custos_padrao()).to_dict(orient="records"),
+                "taxas": {
+                    "comissao": st.session_state.get("taxa_comissao", 0.0),
+                    "cenario_cartao": st.session_state.get("cenario_cartao", "Crédito 1x"),
+                    "tipo_imposto": st.session_state.get("tipo_imposto", "Simples Nacional"),
+                    "aliquota_imposto": st.session_state.get("aliquota_imposto", 6.0)
+                },
+                "preco_escolhido": st.session_state.get("preco_escolhido", 0.0)
+            }
+        novo_servico = st.session_state["combo_servico"]
+        carregar_servico_para_estado(novo_servico)
+
     col_sel1, col_sel2 = st.columns([3, 1])
     with col_sel1:
         st.markdown("**🔍 Selecione o Serviço para Edição:**")
         st.selectbox(
             "Filtro", options=lista_nomes_servicos,
             index=lista_nomes_servicos.index(st.session_state["servico_atual"]) if st.session_state["servico_atual"] in lista_nomes_servicos else 0,
-            key="combo_servico", on_change=lambda: carregar_servico_para_estado(st.session_state["combo_servico"]),
+            key="combo_servico", on_change=trocar_e_salvar_servico,
             label_visibility="collapsed"
         )
     with col_sel2:
@@ -633,7 +655,7 @@ def render_ficha_tecnica():
         sub_kpi1.metric("5. Custo Operacional", f"R$ {custo_total_servico:,.2f}", help="Soma de hora clínica, máquinas, insumos, aluguéis e repasses fixos.")
         sub_kpi2.metric("6. Lucro Líquido", f"R$ {lucro:,.2f}")
         sub_kpi3.metric("7. Margem (%)", f"{pct_lucro*100:.1f}%")
-        sub_kpi4.metric("8. Preço Sugerido", f"R$ {preco_sugerido_break_even:,.2f}", help="Ponto de Equilíbrio: Preço exato para ter Lucro Zero.")
+        sub_kpi4.metric("8. Ponto de Equilíbrio", f"R$ {preco_sugerido_break_even:,.2f}", help="Ponto de Equilíbrio: Preço exato para ter Lucro Zero.")
 
         st.write("") 
 
@@ -659,7 +681,7 @@ def render_ficha_tecnica():
             st.write("**Fórmulas de Eficiência Financeira:**")
             st.latex(r"Margem\ (\%) = \left( \frac{Lucro\ Final}{Preço\ de\ Venda} \right) \times 100")
             st.latex(r"Preço\ Sugerido = \frac{Custo\ Operacional}{(1 - Taxas\%) \times (1 - Repasse\%)}")
-            st.caption("💡 O **Preço Sugerido** (Ponto de Equilíbrio) faz o caminho inverso para descobrir quanto você precisa cobrar para cobrir todos os custos e pagar o médico, ficando com lucro zero no final.")
+            st.caption("💡 O **Ponto de Equilíbrio** (Ponto de Equilíbrio) faz o caminho inverso para descobrir quanto você precisa cobrar para cobrir todos os custos e pagar o médico, ficando com lucro zero no final.")
 
         st.divider()
 
@@ -688,7 +710,7 @@ def render_ficha_tecnica():
             )
             
         metricas_opcoes = [
-            "Preço de Venda (R$)", "Preço Sugerido (R$)", "Custo Total (R$)", "Lucro Líquido (R$)", 
+            "Preço de Venda (R$)", "Ponto de Equilíbrio (R$)", "Custo Total (R$)", "Lucro Líquido (R$)", 
             "Taxas/Impostos Totais (R$)", "Impostos (R$)", "Taxa Cartão (R$)", "Comissão (R$)",
             "Repasse Médico (R$)", "Hora Clínica (R$)", "Máquinas e Equip. (R$)", "Materiais e Insumos (R$)", 
             "Outros Custos (R$)", "Aluguel (R$)", "Repasse Fixo (R$)"
@@ -752,7 +774,7 @@ def render_ficha_tecnica():
                 dados_comp.append({
                     "Serviço": serv_nome, 
                     "Preço de Venda (R$)": preco_l, 
-                    "Preço Sugerido (R$)": preco_sug_l,
+                    "Ponto de Equilíbrio (R$)": preco_sug_l,
                     "Custo Total (R$)": c_tot_l, 
                     "Lucro Líquido (R$)": lucro_s_l,
                     "Taxas/Impostos Totais (R$)": taxas_totais_l,
@@ -804,7 +826,7 @@ def render_ficha_tecnica():
                 df_exibicao = df_comp.sort_values(by="Lucro Líquido (R$)", ascending=False)
                 st.dataframe(df_exibicao.style.format({
                     "Preço de Venda (R$)": "R$ {:,.2f}", 
-                    "Preço Sugerido (R$)": "R$ {:,.2f}",
+                    "Ponto de Equilíbrio (R$)": "R$ {:,.2f}",
                     "Custo Total (R$)": "R$ {:,.2f}", 
                     "Lucro Líquido (R$)": "R$ {:,.2f}",
                     "Taxas/Impostos Totais (R$)": "R$ {:,.2f}",
@@ -1292,7 +1314,7 @@ def render_custos_fixos():
         # Custo do M2 Geral = Despesa Fixa / Total da Metragem
         custo_por_m2 = despesa_mensal_media / total_m2 if total_m2 > 0 else 0
 
-        # Lógica de Horas Globais 
+        # Lógica de Horas Globais
         horas_mensais_por_sala = horas_semanais_config * semanas_mes
         horas_totais_todas_salas = horas_mensais_por_sala * qtd_salas_produtivas
         
@@ -1365,6 +1387,7 @@ def render_custos_fixos():
             if c2.button("Criar Categoria", use_container_width=True):
                 if nova_cat and nova_cat not in st.session_state["df_custos_categorias"]:
                     st.session_state["df_custos_categorias"][nova_cat] = pd.DataFrame(columns=["ÍTEM", "MENSAL (R$)"])
+                    salvar_estado_nuvem()
                     st.rerun()
                     
         with tab_ren_c:
@@ -1379,6 +1402,7 @@ def render_custos_fixos():
                         if k == cat_renomear: novo_dict[novo_nome_cat] = v
                         else: novo_dict[k] = v
                     st.session_state["df_custos_categorias"] = novo_dict
+                    salvar_estado_nuvem()
                     st.rerun()
 
         with tab_del_c:
@@ -1388,10 +1412,12 @@ def render_custos_fixos():
             if c2.button("🗑️ Remover Selecionada", use_container_width=True):
                 if cat_remover in st.session_state["df_custos_categorias"]:
                     del st.session_state["df_custos_categorias"][cat_remover]
+                    salvar_estado_nuvem()
                     st.rerun()
             st.write("")
             if c3.button("⚠️ Excluir TODAS", type="primary", use_container_width=True):
                 st.session_state["df_custos_categorias"] = {}
+                salvar_estado_nuvem()
                 st.rerun()
 
 def render_equipamentos():
@@ -1413,7 +1439,7 @@ def render_equipamentos():
             n_nome = c1.text_input("Nome do Equipamento")
             n_valor = c2.number_input("Valor Aquisição (R$)", min_value=0.0, step=100.0, format="%.2f")
             n_vida = c3.number_input("Vida Útil (Anos)", min_value=1.0, step=1.0, format="%.1f")
-            n_cap = c1.number_input("Capacidade de Aplicações / dia (R$)", min_value=0.0, step=10.0, format="%.2f")
+            n_cap = c1.number_input("Capacidade de Aplicações / dia (Qtd)", min_value=0.0, step=10.0, format="%.2f")
             n_apps = c2.number_input("Aplicações (média diária)", min_value=1.0, step=1.0, format="%.1f")
             n_manut = c3.number_input("Manutenção Anual (R$)", min_value=0.0, step=10.0, format="%.2f")
             
@@ -1423,7 +1449,7 @@ def render_equipamentos():
                         "Nome do equipamento": n_nome, 
                         "Valor de aquisição (R$)": float(n_valor),
                         "Tempo de vida útil (anos)": float(n_vida), 
-                        "Capacidade de Aplicações / dia (R$)": float(n_cap),
+                        "Capacidade de Aplicações / dia (Qtd)": float(n_cap),
                         "Aplicações (média diária)": float(n_apps), 
                         "Custo anual de manutenção (R$)": float(n_manut)
                     }])
@@ -1440,7 +1466,7 @@ def render_equipamentos():
             novo_nome_eq = c1.text_input("Nome do Equipamento", value=row_eq["Nome do equipamento"], key="in_ren_eq")
             novo_valor_eq = c2.number_input("Valor Aquisição (R$)", value=float(row_eq["Valor de aquisição (R$)"]), min_value=0.0, step=100.0, format="%.2f", key="edit_val_eq")
             novo_vida_eq = c3.number_input("Vida Útil (Anos)", value=float(row_eq["Tempo de vida útil (anos)"]), min_value=1.0, step=1.0, format="%.1f", key="edit_vida_eq")
-            novo_cap_eq = c1.number_input("Capacidade Aplicações / dia (R$)", value=float(row_eq["Capacidade de Aplicações / dia (R$)"]), min_value=0.0, step=10.0, format="%.2f", key="edit_cap_eq")
+            novo_cap_eq = c1.number_input("Capacidade Aplicações / dia (Qtd)", value=float(row_eq.get("Capacidade de Aplicações / dia (Qtd)", 0.0)), min_value=0.0, step=10.0, format="%.2f", key="edit_cap_eq")
             novo_apps_eq = c2.number_input("Aplicações (média diária)", value=float(row_eq["Aplicações (média diária)"]), min_value=1.0, step=1.0, format="%.1f", key="edit_apps_eq")
             novo_manut_eq = c3.number_input("Manutenção Anual (R$)", value=float(row_eq["Custo anual de manutenção (R$)"]), min_value=0.0, step=10.0, format="%.2f", key="edit_manut_eq")
             
@@ -1451,7 +1477,7 @@ def render_equipamentos():
                     df_eq.at[idx, "Nome do equipamento"] = novo_nome_eq
                     df_eq.at[idx, "Valor de aquisição (R$)"] = novo_valor_eq
                     df_eq.at[idx, "Tempo de vida útil (anos)"] = novo_vida_eq
-                    df_eq.at[idx, "Capacidade de Aplicações / dia (R$)"] = novo_cap_eq
+                    df_eq.at[idx, "Capacidade de Aplicações / dia (Qtd)"] = novo_cap_eq
                     df_eq.at[idx, "Aplicações (média diária)"] = novo_apps_eq
                     df_eq.at[idx, "Custo anual de manutenção (R$)"] = novo_manut_eq
                     
@@ -1478,8 +1504,11 @@ def render_equipamentos():
     st.session_state["dias_uteis_eq"] = dias_uteis
 
     df_calc = st.session_state["df_lista_equipamentos"].copy()
-    if "Capacidade aplicações/dia" in df_calc.columns:
-        df_calc.rename(columns={"Capacidade aplicações/dia": "Capacidade de Aplicações / dia (R$)"}, inplace=True)
+    if "Capacidade aplicações/dia" in df_calc.columns or "Capacidade de Aplicações / dia (R$)" in df_calc.columns:
+        df_calc.rename(columns={
+            "Capacidade aplicações/dia": "Capacidade de Aplicações / dia (Qtd)",
+            "Capacidade de Aplicações / dia (R$)": "Capacidade de Aplicações / dia (Qtd)"
+        }, inplace=True)
         st.session_state["df_lista_equipamentos"] = df_calc.copy()
 
     if not df_calc.empty:
@@ -1488,7 +1517,7 @@ def render_equipamentos():
         df_calc["Custo Seção"] = df_calc.apply(lambda row: row["Depreciação Mensal"] / (row.get("Aplicações (média diária)", 1) * dias_uteis) if row.get("Aplicações (média diária)", 0) > 0 else 0, axis=1)
         
         formato_tabela = {
-            "Valor de aquisição (R$)": "R$ {:,.2f}", "Capacidade de Aplicações / dia (R$)": "R$ {:,.2f}",
+            "Valor de aquisição (R$)": "R$ {:,.2f}", "Capacidade de Aplicações / dia (Qtd)": "{:,.2f}",
             "Custo anual de manutenção (R$)": "R$ {:,.2f}", "Montante Investido": "R$ {:,.2f}",
             "Depreciação Mensal": "R$ {:,.2f}", "Custo Seção": "R$ {:,.2f}"
         }
