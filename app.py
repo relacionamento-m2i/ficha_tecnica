@@ -217,65 +217,66 @@ def inicializar_padroes_caso_vazio():
     ])
     
     st.session_state["df_custos_categorias"] = {
-        "1. Despesa com pessoal": pd.DataFrame([
-            {"ÍTEM": "1.1 Total da folha de pagamento clt (com 13º)", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "1.2 Despesas com alimentação e transporte", "MENSAL (R$)": 0.0},
+        "1. Despesas com Pessoal": pd.DataFrame([
+            {"ÍTEM": "1.1 Folha de Pagamento CLT (com 13º)", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "1.2 Despesas com Alimentação e Transporte", "MENSAL (R$)": 0.0},
             {"ÍTEM": "1.3 Reserva para Rescisões (6%)", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "1.4 Pro-labore", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "1.4 Pró-labore", "MENSAL (R$)": 0.0},
             {"ÍTEM": "1.5 Descanso sem Remuneração", "MENSAL (R$)": 0.0},
             {"ÍTEM": "1.6 FGTS", "MENSAL (R$)": 0.0},
             {"ÍTEM": "1.7 Férias", "MENSAL (R$)": 0.0}
         ]),
         "2. Seguros": pd.DataFrame([
-            {"ÍTEM": "2.1 Seguros do estabelecimento", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "2.2 Seguro médico", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "2.3 Outros seguros", "MENSAL (R$)": 0.0}
+            {"ÍTEM": "2.1 Seguros do Estabelecimento", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "2.2 Seguro Médico (Responsabilidade Civil)", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "2.3 Outros Seguros", "MENSAL (R$)": 0.0}
         ]),
-        "3. Manutenção e conservação": pd.DataFrame([
+        "3. Manutenção e Conservação": pd.DataFrame([
             {"ÍTEM": "3.1 Elevadores", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "3.2 Manutenção do ar", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "3.3 Coleta de lixo hospitalar", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "3.4 Manutenção de equipamentos", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "3.5 Pinturas", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "3.6 Jardins", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "3.7 Extintores", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "3.8 Reserva de Equipamentos", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.2 Manutenção de Ar-condicionado", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.3 Coleta de Lixo Hospitalar", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.4 Manutenção de Equipamentos", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.5 Pintura e Reparos", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.6 Jardins e Fachada", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.7 Extintores e Segurança", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "3.8 Reserva de Depreciação de Equipamentos", "MENSAL (R$)": 0.0},
             {"ÍTEM": "3.9 Outras Despesas", "MENSAL (R$)": 0.0}
         ]),
         "4. Despesas de Estrutura e Consumo": pd.DataFrame([
-            {"ÍTEM": "4.1 Aluguel", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "4.2 Limpeza", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.1 Aluguel e Condomínio", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.2 Limpeza Terceirizada", "MENSAL (R$)": 0.0},
             {"ÍTEM": "4.3 Energia Elétrica", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "4.4 Água", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "4.5 Telefones/Interfones", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.4 Água e Esgoto", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.5 Telefonia e Interfones", "MENSAL (R$)": 0.0},
             {"ÍTEM": "4.6 Internet", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "4.7 Material de limpeza", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "4.8 Material para Copa / Experiência do Cliente", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "4.9 Mat. Uso e Consumo", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.7 Materiais de Limpeza", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.8 Copa e Experiência do Cliente", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "4.9 Materiais de Uso e Consumo", "MENSAL (R$)": 0.0},
             {"ÍTEM": "4.10 IPTU", "MENSAL (R$)": 0.0}
         ]),
         "5. Despesas Administrativas": pd.DataFrame([
-            {"ÍTEM": "5.1 Serviços de terceiros PJ e PF", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "5.2 Serviços Terceirizados de Fisioterapia", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "5.3 Contribuições associativas", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "5.4 Outras Consultorias", "MENSAL (R$)": 0.0}
+            {"ÍTEM": "5.1 Serviços de Terceiros (PJ e PF)", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "5.2 Fisioterapia Terceirizada", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "5.3 Contribuições Associativas e Conselhos", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "5.4 Consultorias e Assessorias", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "5.5 Contabilidade", "MENSAL (R$)": 0.0}
         ]),
         "6. Despesas com TI": pd.DataFrame([
-            {"ÍTEM": "6.1 Sistemas de gestão", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "6.1 Sistemas de Gestão (ERP)", "MENSAL (R$)": 0.0},
             {"ÍTEM": "6.2 Locação de Impressoras", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "6.4 Chat bot / recursos de automação", "MENSAL (R$)": 0.0}
+            {"ÍTEM": "6.3 Chatbot e Ferramentas de Automação", "MENSAL (R$)": 0.0}
         ]),
-        "7. Despesas bancárias": pd.DataFrame([
-            {"ÍTEM": "7.1 Taxa administrativa de contas", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "7.2 Máquinas de cartão", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "7.3 Iof / juros", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "7.4 Outras despesas", "MENSAL (R$)": 0.0}
+        "7. Despesas Bancárias": pd.DataFrame([
+            {"ÍTEM": "7.1 Tarifas Administrativas de Contas", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "7.2 Aluguel de Máquinas de Cartão", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "7.3 IOF e Juros", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "7.4 Outras Despesas Bancárias", "MENSAL (R$)": 0.0}
         ]),
-        "8. Marketing e vendas": pd.DataFrame([
-            {"ÍTEM": "8.1 Agência", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "8.2 Site", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "8.3 Campanhas", "MENSAL (R$)": 0.0},
-            {"ÍTEM": "8.4 Outras despesas", "MENSAL (R$)": 0.0}
+        "8. Marketing e Vendas": pd.DataFrame([
+            {"ÍTEM": "8.1 Agência de Marketing", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "8.2 Hospedagem e Manutenção de Site", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "8.3 Campanhas (Ads / Tráfego Pago)", "MENSAL (R$)": 0.0},
+            {"ÍTEM": "8.4 Outras Despesas Comerciais", "MENSAL (R$)": 0.0}
         ])
     }
     st.session_state["protocolos_db"] = []
@@ -655,7 +656,7 @@ def render_ficha_tecnica():
         sub_kpi1.metric("5. Custo Operacional", f"R$ {custo_total_servico:,.2f}", help="Soma de hora clínica, máquinas, insumos, aluguéis e repasses fixos.")
         sub_kpi2.metric("6. Lucro Líquido", f"R$ {lucro:,.2f}")
         sub_kpi3.metric("7. Margem (%)", f"{pct_lucro*100:.1f}%")
-        sub_kpi4.metric("8. Ponto de Equilíbrio", f"R$ {preco_sugerido_break_even:,.2f}", help="Ponto de Equilíbrio: Preço exato para ter Lucro Zero.")
+        sub_kpi4.metric("8. Preço Mínimo", f"R$ {preco_sugerido_break_even:,.2f}", help="Ponto de Equilíbrio: Preço exato para ter Lucro Zero.")
 
         st.write("") 
 
@@ -680,8 +681,8 @@ def render_ficha_tecnica():
             st.markdown("---")
             st.write("**Fórmulas de Eficiência Financeira:**")
             st.latex(r"Margem\ (\%) = \left( \frac{Lucro\ Final}{Preço\ de\ Venda} \right) \times 100")
-            st.latex(r"Preço\ Sugerido = \frac{Custo\ Operacional}{(1 - Taxas\%) \times (1 - Repasse\%)}")
-            st.caption("💡 O **Ponto de Equilíbrio** faz o caminho inverso para descobrir quanto você precisa cobrar para cobrir todos os custos e pagar o médico, ficando com lucro zero no final.")
+            st.latex(r"Preço\ Mínimo = \frac{Custo\ Operacional}{(1 - Taxas\%) \times (1 - Repasse\%)}")
+            st.caption("💡 O **Preço Mínimo** faz o caminho inverso para descobrir quanto você precisa cobrar para cobrir todos os custos e pagar o médico, ficando com lucro zero no final.")
 
         st.divider()
 
@@ -710,7 +711,7 @@ def render_ficha_tecnica():
             )
             
         metricas_opcoes = [
-            "Preço de Venda (R$)", "Ponto de Equilíbrio (R$)", "Custo Total (R$)", "Lucro Líquido (R$)", 
+            "Preço de Venda (R$)", "Preço Mínimo (R$)", "Custo Total (R$)", "Lucro Líquido (R$)", 
             "Taxas/Impostos Totais (R$)", "Impostos (R$)", "Taxa Cartão (R$)", "Comissão (R$)",
             "Repasse Médico (R$)", "Hora Clínica (R$)", "Máquinas e Equip. (R$)", "Materiais e Insumos (R$)", 
             "Outros Custos (R$)", "Aluguel (R$)", "Repasse Fixo (R$)"
@@ -774,7 +775,7 @@ def render_ficha_tecnica():
                 dados_comp.append({
                     "Serviço": serv_nome, 
                     "Preço de Venda (R$)": preco_l, 
-                    "Ponto de Equilíbrio (R$)": preco_sug_l,
+                    "Preço Mínimo (R$)": preco_sug_l,
                     "Custo Total (R$)": c_tot_l, 
                     "Lucro Líquido (R$)": lucro_s_l,
                     "Taxas/Impostos Totais (R$)": taxas_totais_l,
@@ -796,12 +797,14 @@ def render_ficha_tecnica():
             
             st.markdown("##### 💡 Insights da Seleção:")
             col_in1, col_in2, col_in3 = st.columns(3)
-            servico_top = df_comp.iloc[-1] 
-            lucro_medio = df_comp["Lucro Líquido (R$)"].mean()
             
-            col_in1.metric("Serviço Mais Rentável", servico_top["Serviço"])
-            col_in2.metric("Pico de Lucro", f"R$ {servico_top['Lucro Líquido (R$)']:,.2f}")
-            col_in3.metric("Média de Lucro (Seleção)", f"R$ {lucro_medio:,.2f}")
+            # Novo cálculo baseado na Margem
+            servico_top_margem = df_comp.loc[df_comp["Margem"].idxmax()] 
+            margem_media = df_comp["Margem"].mean()
+            
+            col_in1.metric("Maior Margem (%)", servico_top_margem["Serviço"])
+            col_in2.metric("Pico de Margem", f"{servico_top_margem['Margem']*100:.1f}%")
+            col_in3.metric("Margem Média (Seleção)", f"{margem_media*100:.1f}%")
             
             st.write("")
 
@@ -826,7 +829,7 @@ def render_ficha_tecnica():
                 df_exibicao = df_comp.sort_values(by="Lucro Líquido (R$)", ascending=False)
                 st.dataframe(df_exibicao.style.format({
                     "Preço de Venda (R$)": "R$ {:,.2f}", 
-                    "Ponto de Equilíbrio (R$)": "R$ {:,.2f}",
+                    "Preço Mínimo (R$)": "R$ {:,.2f}",
                     "Custo Total (R$)": "R$ {:,.2f}", 
                     "Lucro Líquido (R$)": "R$ {:,.2f}",
                     "Taxas/Impostos Totais (R$)": "R$ {:,.2f}",
