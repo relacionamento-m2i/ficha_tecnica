@@ -1292,17 +1292,26 @@ def render_custos_fixos():
         # Custo do M2 Geral = Despesa Fixa / Total da Metragem
         custo_por_m2 = despesa_mensal_media / total_m2 if total_m2 > 0 else 0
 
-        # Lógica de Horas Globais e Ocupação
+        # Lógica de Horas Globais 
         horas_mensais_por_sala = horas_semanais_config * semanas_mes
         horas_totais_todas_salas = horas_mensais_por_sala * qtd_salas_produtivas
-        horas_estimadas_ocupacao = horas_totais_todas_salas * (ocupacao_pct / 100)
         
-        hora_clinica_global_real = despesa_mensal_media / horas_estimadas_ocupacao if horas_estimadas_ocupacao > 0 else 0
+        # CORREÇÃO: Evitar erro matemático se ocupação for zero e usar fator decimal
+        fator_ocupacao = (ocupacao_pct / 100) if ocupacao_pct > 0 else 1.0
+        horas_estimadas_ocupacao_global = horas_totais_todas_salas * fator_ocupacao
+        
+        hora_clinica_global_real = despesa_mensal_media / horas_estimadas_ocupacao_global if horas_estimadas_ocupacao_global > 0 else 0
 
         if not df_salas_calc.empty:
             df_salas_calc["Custo Mensal por M2/Sala"] = df_salas_calc["M2"] * custo_por_m2
+            
+            # Custo Turno Mensal (Valor para locação de um "bloco" fixo semanal por todo o mês)
             df_salas_calc["Custo Turno Mensal"] = df_salas_calc["Custo Mensal por M2/Sala"] / turnos_semana if turnos_semana > 0 else 0
-            df_salas_calc["Custo Hora /Sala"] = df_salas_calc["Custo Mensal por M2/Sala"] / horas_mensais_por_sala if horas_mensais_por_sala > 0 else 0
+            
+            # CORREÇÃO DA INCONSISTÊNCIA: 
+            # O Custo Hora da Sala agora embute a ociosidade da agenda, garantindo o ponto de equilíbrio.
+            horas_ocupadas_por_sala = horas_mensais_por_sala * fator_ocupacao
+            df_salas_calc["Custo Hora /Sala"] = df_salas_calc["Custo Mensal por M2/Sala"] / horas_ocupadas_por_sala if horas_ocupadas_por_sala > 0 else 0
 
         st.markdown("**2. Indicadores Consolidados:**")
         k_s1, k_s2, k_s3, k_s4 = st.columns(4)
