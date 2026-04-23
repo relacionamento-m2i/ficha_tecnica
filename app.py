@@ -39,8 +39,8 @@ COR_FUNDO_CLARO = "#E0F2F4"
 COR_TEXTO_BRANCO = "#FFFFFF"
 PALETA_GRAFICOS = ['#159EAC', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#9b59b6']
 
-# CONFIGURAÇÃO DA LOGO
-CAMINHO_LOGO = r"C:\Users\user\Downloads\Fichas Técnicas Código\logo.png"
+# Mude a linha 39 para:
+CAMINHO_LOGO = "logo.png"
 
 st.markdown(f"""
     <style>
