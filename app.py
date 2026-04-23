@@ -1129,7 +1129,7 @@ def render_ficha_tecnica():
             c3.button("⚠️ Excluir TODOS", on_click=cb_excluir_todos, type="primary", use_container_width=True)
 
 def render_custos_fixos():
-    cabecalho_padrao("GESTÃO DE CUSTOS FIXOS E HORA CLÍNICA")
+    cabecalho_padrao("Estrutura de Custos e Formação da Hora Clínica")
     
     col_t1, col_t2 = st.columns([3, 1])
     with col_t2:
