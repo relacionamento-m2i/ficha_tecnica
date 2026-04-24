@@ -958,7 +958,10 @@ def render_ficha_tecnica():
         else:
             st.info("Nenhum custo extra cadastrado (Ex: Enfermeiro, Instrumentador).")
         
-        with st.expander("➕ Adicionar Outro Custo"):
+        tab_add_oc, tab_edit_oc, tab_del_oc = st.tabs(["➕ Adicionar", "✏️ Editar", "🗑️ Excluir"])
+        opcoes_oc = df_outros["Descrição"].tolist() if not df_outros.empty else []
+
+        with tab_add_oc:
             with st.form("form_outros_custos", clear_on_submit=True):
                 col_oc1, col_oc2, col_oc3, col_oc4 = st.columns([2, 2, 2, 2])
                 tipo_oc = col_oc1.selectbox("Tipo", ["Auxiliar Técnico", "Enfermeiro", "Instrumentador", "Segurança", "Taxa Feriado", "Outro (Livre)"])
@@ -968,8 +971,51 @@ def render_ficha_tecnica():
                 
                 if st.form_submit_button("Adicionar Custo"):
                     nome_final = desc_oc if tipo_oc == "Outro (Livre)" and desc_oc else tipo_oc
-                    novo_oc = pd.DataFrame([{"Tipo": tipo_oc, "Descrição": nome_final, "Valor (R$)": float(val_oc), "Custo Fixo/Operação": freq_oc}])
-                    st.session_state["df_ficha_outros_custos"] = pd.concat([df_outros, novo_oc], ignore_index=True)
+                    if nome_final:
+                        novo_oc = pd.DataFrame([{"Tipo": tipo_oc, "Descrição": nome_final, "Valor (R$)": float(val_oc), "Custo Fixo/Operação": freq_oc}])
+                        st.session_state["df_ficha_outros_custos"] = pd.concat([df_outros, novo_oc], ignore_index=True)
+                        st.rerun()
+
+        with tab_edit_oc:
+            oc_editar = st.selectbox("Selecione para editar:", options=opcoes_oc, key="sel_edit_oc")
+            if oc_editar and not df_outros.empty:
+                row_oc = df_outros[df_outros["Descrição"] == oc_editar].iloc[0]
+                
+                c1, c2, c3, c4 = st.columns([2, 2, 2, 2])
+                tipos_padrao = ["Auxiliar Técnico", "Enfermeiro", "Instrumentador", "Segurança", "Taxa Feriado", "Outro (Livre)"]
+                tipo_atual = row_oc["Tipo"] if row_oc["Tipo"] in tipos_padrao else "Outro (Livre)"
+                
+                novo_tipo_oc = c1.selectbox("Tipo", tipos_padrao, index=tipos_padrao.index(tipo_atual), key="edit_tipo_oc")
+                nova_desc_oc = c2.text_input("Descrição", value=row_oc["Descrição"], key="edit_desc_oc")
+                novo_val_oc = c3.number_input("Valor (R$)", value=float(row_oc["Valor (R$)"]), min_value=0.0, step=10.0, format="%.2f", key="edit_val_oc")
+                
+                opcoes_freq = ["Por Operação", "Fixo Mensal (Rateio)"]
+                freq_atual = row_oc["Custo Fixo/Operação"] if row_oc["Custo Fixo/Operação"] in opcoes_freq else opcoes_freq[0]
+                nova_freq_oc = c4.selectbox("Cobrança", opcoes_freq, index=opcoes_freq.index(freq_atual), key="edit_freq_oc")
+                
+                st.write("")
+                if st.button("💾 Salvar Edição", key="btn_salvar_edit_oc", use_container_width=True):
+                    if nova_desc_oc:
+                        idx = df_outros.index[df_outros["Descrição"] == oc_editar].tolist()[0]
+                        df_outros.at[idx, "Tipo"] = novo_tipo_oc
+                        df_outros.at[idx, "Descrição"] = nova_desc_oc
+                        df_outros.at[idx, "Valor (R$)"] = novo_val_oc
+                        df_outros.at[idx, "Custo Fixo/Operação"] = nova_freq_oc
+                        
+                        st.session_state["df_ficha_outros_custos"] = df_outros
+                        st.rerun()
+
+        with tab_del_oc:
+            if not df_outros.empty:
+                c1, c2, c3 = st.columns([2, 1, 1])
+                oc_remover = c1.selectbox("Remover custo:", options=opcoes_oc, key="sel_rem_oc")
+                st.write("")
+                if c2.button("🗑️ Remover", key="btn_rem_oc_bt", use_container_width=True):
+                    st.session_state["df_ficha_outros_custos"] = df_outros[df_outros["Descrição"] != oc_remover]
+                    st.rerun()
+                st.write("")
+                if c3.button("⚠️ Excluir TODOS", key="btn_rem_todos_oc", type="primary", use_container_width=True):
+                    st.session_state["df_ficha_outros_custos"] = df_outros_custos_padrao()
                     st.rerun()
 
         st.divider()
