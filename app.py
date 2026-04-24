@@ -426,8 +426,8 @@ with st.sidebar:
         "Navegue pelas ferramentas:",
         [
             "0. Início (Onboarding)",
-            "1. Ficha Técnica (Precificação)",
-            "2. Estrutura de Custos e Formação da Hora Clínica",
+            "1. Estrutura de Custos e Formação da Hora Clínica",
+            "2. Ficha Técnica (Precificação)",
             "3. Registro de Equipamentos",
             "4. Insumos e Materiais",
             "5. Impostos e Taxas",
@@ -1113,6 +1113,7 @@ def render_ficha_tecnica():
 
         st.markdown("### Preço de Venda")
         st.number_input("PREÇO DE TABELA FINAL (R$)", min_value=0.0, step=10.0, format="%.2f", key="preco_escolhido")
+        st.caption(f"💡 **Dica do Sistema:** Para ter **LUCRO ZERO**, seu preço de tabela precisaria ser de pelo menos **R$ {preco_sugerido_break_even:,.2f}**.")
         
         # --- NOVO BLOCO DE EDIÇÃO EM MASSA AQUI ---
         st.divider()
@@ -1353,7 +1354,7 @@ def render_custos_fixos():
             for idx, reg in enumerate(registros_salas):
                 c1, c2, c3 = st.columns([5, 3, 1])
                 novo_nome = c1.text_input("Sala", value=reg['Sala'], key=f"edit_sala_nome_{idx}", label_visibility="collapsed")
-                nova_m2 = c2.number_input("M²", value=float(reg['M2']), min_value=1.0, step=0.5, format="%.1f", key=f"edit_sala_m2_{idx}", label_visibility="collapsed")
+                nova_m2 = c2.number_input("M²", value=float(reg['M2']), min_value=1.00, step=0.10, format="%.2f", key=f"edit_sala_m2_{idx}", label_visibility="collapsed")
                 
                 registros_salas[idx]['Sala'] = novo_nome
                 registros_salas[idx]['M2'] = nova_m2
@@ -1372,7 +1373,7 @@ def render_custos_fixos():
             st.caption("Adicionar nova sala:")
             c1, c2, c3 = st.columns([4, 2, 2])
             n_sala = c1.text_input("Nome da Sala (Ex: Sala 6 - Avaliação)")
-            n_m2 = c2.number_input("Metragem (M²)", min_value=1.0, step=0.5, format="%.1f")
+            n_m2 = c2.number_input("Metragem (M²)", min_value=1.00, step=0.10, format="%.2f")
             if c3.form_submit_button("➕ Adicionar Sala"):
                 if n_sala:
                     registros_salas.append({"Sala": n_sala, "M2": float(n_m2)})
@@ -1412,7 +1413,7 @@ def render_custos_fixos():
 
         st.markdown("**2. Indicadores Consolidados:**")
         k_s1, k_s2, k_s3, k_s4 = st.columns(4)
-        k_s1.metric("Total Metragem Produtiva", f"{total_m2:.1f} M²")
+        k_s1.metric("Total Metragem Produtiva", f"{total_m2:.2f} M²")
         k_s2.metric("Qtd Salas Produtivas", f"{qtd_salas_produtivas}")
         k_s3.metric("Custo por M²", f"R$ {custo_por_m2:,.2f}")
         k_s4.metric("Hora Clínica (com Ocupação)", f"R$ {hora_clinica_global_real:,.2f}", help=f"Considerando {ocupacao_pct}% de preenchimento da agenda de todas as salas juntas.")
@@ -1422,7 +1423,7 @@ def render_custos_fixos():
         if not df_salas_calc.empty:
             st.dataframe(
                 df_salas_calc.style.format({
-                    "M2": "{:.1f}",
+                    "M2": "{:.2f}",
                     "Custo Mensal por M2/Sala": "R$ {:,.2f}",
                     "Custo Turno Mensal": "R$ {:,.2f}",
                     "Custo Hora /Sala": "R$ {:,.2f}"
@@ -1970,8 +1971,8 @@ def render_protocolos():
 # ROTEAMENTO
 # ==========================================
 if modulo_selecionado == "0. Início (Onboarding)": render_onboarding()
-elif modulo_selecionado == "1. Ficha Técnica (Precificação)": render_ficha_tecnica()
-elif modulo_selecionado == "2. Estrutura de Custos e Formação da Hora Clínica": render_custos_fixos()
+elif modulo_selecionado == "1. Estrutura de Custos e Formação da Hora Clínica": render_custos_fixos()
+elif modulo_selecionado == "2. Ficha Técnica (Precificação)": render_ficha_tecnica()
 elif modulo_selecionado == "3. Registro de Equipamentos": render_equipamentos()
 elif modulo_selecionado == "4. Insumos e Materiais": render_insumos()
 elif modulo_selecionado == "5. Impostos e Taxas": render_taxas()
