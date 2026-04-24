@@ -123,7 +123,15 @@ if st.session_state["usuario_logado"] is None:
             
             if btn_entrar:
                 if usuario_input in SENHAS and str(SENHAS[usuario_input]) == str(senha_input):
+                    # 1. Limpeza brutal de qualquer cache anterior antes de logar
+                    for key in list(st.session_state.keys()):
+                        del st.session_state[key]
+                        
+                    # 2. Registra o novo usuário
                     st.session_state["usuario_logado"] = usuario_input
+                    
+                    # 3. ISSO AQUI é o segredo: Força o sistema a ir na nuvem buscar os dados novos
+                    st.session_state["dados_carregados"] = False 
                     st.rerun() 
                 else:
                     st.error("❌ Usuário ou senha incorretos.")
@@ -407,7 +415,9 @@ with st.sidebar:
     
     st.markdown(f"👤 Logado como: **{ID_CLIENTE}**")
     if st.button("🚪 Sair (Logout)", use_container_width=True):
-        st.session_state.clear() 
+        # Varredura completa da memória ao sair
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
         st.rerun()
     
     st.divider()
