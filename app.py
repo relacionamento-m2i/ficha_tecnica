@@ -1103,7 +1103,6 @@ def render_ficha_tecnica():
 
         st.markdown("### Preço de Venda")
         st.number_input("PREÇO DE TABELA FINAL (R$)", min_value=0.0, step=10.0, format="%.2f", key="preco_escolhido")
-        st.caption(f"💡 **Dica do Sistema:** Para ter **LUCRO ZERO**, seu preço de tabela precisaria ser de pelo menos **R$ {preco_sugerido_break_even:,.2f}**.")
         
         # --- NOVO BLOCO DE EDIÇÃO EM MASSA AQUI ---
         st.divider()
