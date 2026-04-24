@@ -501,7 +501,7 @@ def render_ficha_tecnica():
         novo_servico = st.session_state["combo_servico"]
         carregar_servico_para_estado(novo_servico)
 
-    col_sel1, col_sel2 = st.columns([3, 1])
+    col_sel1, col_sel_btn, col_sel2 = st.columns([2, 1, 1])
     with col_sel1:
         st.markdown("**🔍 Selecione o Serviço para Edição:**")
         st.selectbox(
@@ -510,7 +510,27 @@ def render_ficha_tecnica():
             key="combo_servico", on_change=trocar_e_salvar_servico,
             label_visibility="collapsed"
         )
+        
+    with col_sel_btn:
+        st.markdown("**Novo Serviço:**")
+        with st.popover("➕ Criar Rápido", use_container_width=True):
+            n_nome_pop = st.text_input("Nome do novo serviço:")
+            if st.button("Criar e Editar", type="primary", use_container_width=True):
+                if n_nome_pop and n_nome_pop not in st.session_state["db_servicos"]:
+                    trocar_e_salvar_servico() 
+                    st.session_state["db_servicos"][n_nome_pop] = {
+                        "tempo_min": 60.0, "maquinas": [], "repasse_fixo": 0.0, "repasse_percentual": 0.0, "custo_aluguel": 0.0, "insumos": [], "outros_custos": [],
+                        "taxas": {"comissao": 0.0, "cenario_cartao": "Crédito 1x", "tipo_imposto": "Simples Nacional", "aliquota_imposto": 6.0},
+                        "preco_escolhido": 0.0
+                    }
+                    carregar_servico_para_estado(n_nome_pop)
+                    salvar_estado_nuvem()
+                    st.rerun()
+                elif n_nome_pop in st.session_state["db_servicos"]:
+                    st.error("Este serviço já existe!")
+
     with col_sel2:
+        st.write("")
         st.write("")
         if st.button("💾 Salvar na Nuvem", type="primary", use_container_width=True):
             st.session_state["db_servicos"][st.session_state["servico_atual"]] = {
@@ -1103,6 +1123,68 @@ def render_ficha_tecnica():
         st.markdown("### Preço de Venda")
         st.number_input("PREÇO DE TABELA FINAL (R$)", min_value=0.0, step=10.0, format="%.2f", key="preco_escolhido")
         st.caption(f"💡 **Dica do Sistema:** Para ter **LUCRO ZERO**, seu preço de tabela precisaria ser de pelo menos **R$ {preco_sugerido_break_even:,.2f}**.")
+        
+        # --- NOVO BLOCO DE EDIÇÃO EM MASSA AQUI ---
+        st.divider()
+        st.markdown(f"<h4 style='color: {COR_CABECALHO};'>🔄 Edição Inteligente em Lote</h4>", unsafe_allow_html=True)
+        
+        with st.expander("Abrir painel de edição múltipla", expanded=False):
+            st.info("Selecione os serviços específicos que deseja padronizar de uma só vez.")
+            
+            todos_servicos = list(st.session_state["db_servicos"].keys())
+            
+            col_lote1, col_lote2 = st.columns([4, 1])
+            with col_lote2:
+                st.write("")
+                selecionar_todos_lote = st.toggle("Selecionar Todos", key="tg_todos_lote")
+                
+            with col_lote1:
+                servicos_alvo = st.multiselect(
+                    "Serviços a serem atualizados:",
+                    options=todos_servicos,
+                    default=todos_servicos if selecionar_todos_lote else [],
+                    help="Você pode selecionar apenas 2 ou 3 serviços, ou usar o botão ao lado para selecionar todos."
+                )
+            
+            if servicos_alvo:
+                st.markdown("**O que você deseja alterar nestes serviços?**")
+                
+                c_bulk1, c_bulk2, c_bulk3 = st.columns(3)
+                novo_imposto = c_bulk1.number_input("Nova Alíquota Imposto (%)", min_value=0.0, step=0.1, value=st.session_state.get('aliquota_imposto', 6.0), key="bulk_imp")
+                nova_comissao = c_bulk2.number_input("Nova Comissão (%)", min_value=0.0, step=0.1, value=st.session_state.get('taxa_comissao', 0.0), key="bulk_com")
+                novo_repasse = c_bulk3.number_input("Novo Repasse Médico (%)", min_value=0.0, step=1.0, value=st.session_state.get('repasse_percentual', 0.0), key="bulk_rep")
+                
+                st.write("")
+                c_btn1, c_btn2, c_btn3 = st.columns(3)
+                
+                if c_btn1.button("Aplicar SÓ Imposto", use_container_width=True):
+                    for s_nome in servicos_alvo:
+                        st.session_state["db_servicos"][s_nome]["taxas"]["aliquota_imposto"] = novo_imposto
+                    salvar_estado_nuvem()
+                    st.success(f"Imposto de {novo_imposto}% aplicado em {len(servicos_alvo)} serviços!")
+                    
+                if c_btn2.button("Aplicar SÓ Comissão", use_container_width=True):
+                    for s_nome in servicos_alvo:
+                        st.session_state["db_servicos"][s_nome]["taxas"]["comissao"] = nova_comissao
+                    salvar_estado_nuvem()
+                    st.success(f"Comissão de {nova_comissao}% aplicada em {len(servicos_alvo)} serviços!")
+                    
+                if c_btn3.button("Aplicar SÓ Repasse", use_container_width=True):
+                    for s_nome in servicos_alvo:
+                        st.session_state["db_servicos"][s_nome]["repasse_percentual"] = novo_repasse
+                    salvar_estado_nuvem()
+                    st.success(f"Repasse de {novo_repasse}% aplicado em {len(servicos_alvo)} serviços!")
+                    
+                st.write("")
+                if st.button("⚠️ Aplicar TODAS as 3 métricas aos selecionados", type="primary", use_container_width=True):
+                    for s_nome in servicos_alvo:
+                        st.session_state["db_servicos"][s_nome]["taxas"]["aliquota_imposto"] = novo_imposto
+                        st.session_state["db_servicos"][s_nome]["taxas"]["comissao"] = nova_comissao
+                        st.session_state["db_servicos"][s_nome]["repasse_percentual"] = novo_repasse
+                    salvar_estado_nuvem()
+                    st.success(f"Todas as taxas foram padronizadas com sucesso em {len(servicos_alvo)} serviços!")
+            else:
+                st.warning("👆 Selecione pelo menos um serviço acima para exibir as opções de edição.")
 
     with tab_gerenciar:
         st.info("Aqui você pode criar um serviço em branco, renomear um existente ou apagar serviços que não usa mais.")
