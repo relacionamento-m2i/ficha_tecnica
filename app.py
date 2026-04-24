@@ -501,7 +501,7 @@ def render_ficha_tecnica():
         novo_servico = st.session_state["combo_servico"]
         carregar_servico_para_estado(novo_servico)
 
-    col_sel1, col_sel_btn, col_sel2 = st.columns([2, 1, 1])
+    col_sel1, col_sel2 = st.columns([3, 1])
     with col_sel1:
         st.markdown("**🔍 Selecione o Serviço para Edição:**")
         st.selectbox(
@@ -511,26 +511,7 @@ def render_ficha_tecnica():
             label_visibility="collapsed"
         )
         
-    with col_sel_btn:
-        st.markdown("**Novo Serviço:**")
-        with st.popover("➕ Criar Rápido", use_container_width=True):
-            n_nome_pop = st.text_input("Nome do novo serviço:")
-            if st.button("Criar e Editar", type="primary", use_container_width=True):
-                if n_nome_pop and n_nome_pop not in st.session_state["db_servicos"]:
-                    trocar_e_salvar_servico() 
-                    st.session_state["db_servicos"][n_nome_pop] = {
-                        "tempo_min": 60.0, "maquinas": [], "repasse_fixo": 0.0, "repasse_percentual": 0.0, "custo_aluguel": 0.0, "insumos": [], "outros_custos": [],
-                        "taxas": {"comissao": 0.0, "cenario_cartao": "Crédito 1x", "tipo_imposto": "Simples Nacional", "aliquota_imposto": 6.0},
-                        "preco_escolhido": 0.0
-                    }
-                    carregar_servico_para_estado(n_nome_pop)
-                    salvar_estado_nuvem()
-                    st.rerun()
-                elif n_nome_pop in st.session_state["db_servicos"]:
-                    st.error("Este serviço já existe!")
-
     with col_sel2:
-        st.write("")
         st.write("")
         if st.button("💾 Salvar na Nuvem", type="primary", use_container_width=True):
             st.session_state["db_servicos"][st.session_state["servico_atual"]] = {
