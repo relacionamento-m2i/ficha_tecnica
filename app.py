@@ -22,7 +22,8 @@ except ImportError:
 
 try:
     from docx import Document
-    from docx.shared import Pt, RGBColor
+    from docx.shared import Pt, RGBColor, Inches
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
 except ImportError:
     st.error("⚠️ A biblioteca 'python-docx' não está instalada.")
     st.info("Abra o terminal e digite: pip install python-docx")
@@ -68,16 +69,19 @@ st.markdown(f"""
     
     /* === Correção dos Inputs === */
     div[data-baseweb="input"] > div, 
-    div[data-baseweb="select"] > div {{
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="textarea"] > div {{
         background-color: #ffffff !important; 
         border: 1px solid #8e8e8e !important; 
         border-radius: 5px !important;
         transition: all 0.2s ease-in-out;
     }}
     div[data-baseweb="input"] > div:hover, 
-    div[data-baseweb="select"] > div:hover {{ border-color: {COR_CABECALHO} !important; }}
+    div[data-baseweb="select"] > div:hover,
+    div[data-baseweb="textarea"] > div:hover {{ border-color: {COR_CABECALHO} !important; }}
     div[data-baseweb="input"] > div:focus-within, 
-    div[data-baseweb="select"] > div:focus-within {{
+    div[data-baseweb="select"] > div:focus-within,
+    div[data-baseweb="textarea"] > div:focus-within {{
         border: 2px solid {COR_CABECALHO} !important;
         box-shadow: 0 0 5px rgba(21, 158, 172, 0.2) !important;
     }}
@@ -210,6 +214,35 @@ def df_maquinas_padrao(): return pd.DataFrame(columns=["nome", "custo"])
 def df_insumos_padrao(): return pd.DataFrame(columns=["Material", "QT", "Preço (R$)"])
 def df_outros_custos_padrao(): return pd.DataFrame(columns=["Tipo", "Descrição", "Valor (R$)", "Custo Fixo/Operação"])
 
+# Função unificada de Dados Comerciais e Playbook
+def dict_dados_comerciais_padrao():
+    return {
+        "dc_prof_resp": "",
+        "dc_caracteristicas": "",
+        "dc_incluso": "",
+        "dc_tecnologias": "",
+        "dc_prof_custos": "",
+        "dc_insumos": "",
+        "dc_pagamento": "",
+        "dc_beneficios": "",
+        "dc_diferenciais": "",
+        "dc_tempo_exec": "",
+        "dc_tempo_recup": "",
+        "dc_requisitos": "",
+        "dc_preparo": "",
+        "dc_cuidados_pos": "",
+        "dc_faq": "",
+        "dc_objecoes": "",
+        "dc_objetivo": "",
+        "dc_duracao": "",
+        "dc_publico": "",
+        "dc_como_acontece": "",
+        "dc_etapas": "",
+        "dc_script_apres": "",
+        "dc_script_conexao": "",
+        "dc_script_fechamento": ""
+    }
+
 def inicializar_padroes_caso_vazio():
     st.session_state["db_servicos"] = {}
     st.session_state["df_lista_equipamentos"] = pd.DataFrame(columns=["Nome do equipamento", "Valor de aquisição (R$)", "Tempo de vida útil (anos)", "Capacidade de Aplicações / dia (Qtd)", "Aplicações (média diária)", "Custo anual de manutenção (R$)"])
@@ -322,6 +355,11 @@ def carregar_servico_para_estado(nome_servico):
     st.session_state["preco_escolhido"] = float(dados.get("preco_escolhido", 0.0))
     st.session_state.setdefault("indireto", "Sim")
     st.session_state.setdefault("valor_hora", 48.14)
+    
+    # NOVO: Carregando dados comerciais e do playbook
+    dc = dados.get("dados_comerciais", {})
+    for chave in dict_dados_comerciais_padrao().keys():
+        st.session_state[chave] = dc.get(chave, "")
 
 def inicializar_estado_ficha():
     lista_nomes_servicos = list(st.session_state.get("db_servicos", {}).keys())
@@ -341,6 +379,9 @@ def inicializar_estado_ficha():
         st.session_state.setdefault("preco_escolhido", 0.0)
         st.session_state.setdefault("indireto", "Sim")
         st.session_state.setdefault("valor_hora", 48.14)
+        
+        for chave in dict_dados_comerciais_padrao().keys():
+            st.session_state.setdefault(chave, "")
         return
 
     primeiro_servico = lista_nomes_servicos[0]
@@ -431,7 +472,8 @@ with st.sidebar:
             "3. Registro de Equipamentos",
             "4. Insumos e Materiais",
             "5. Impostos e Taxas",
-            "6. Protocolos (Jornadas)"
+            "6. Protocolos (Jornadas)",
+            "7. Playbook Comercial"
         ]
     )
     st.divider()
@@ -479,7 +521,8 @@ def render_ficha_tecnica():
                     st.session_state["db_servicos"][n_nome] = {
                         "tempo_min": 60.0, "maquinas": [], "repasse_fixo": 0.0, "repasse_percentual": 0.0, "custo_aluguel": 0.0, "insumos": [], "outros_custos": [],
                         "taxas": {"comissao": 0.0, "cenario_cartao": "Crédito 1x", "tipo_imposto": "Simples Nacional", "aliquota_imposto": 6.0},
-                        "preco_escolhido": 0.0
+                        "preco_escolhido": 0.0,
+                        "dados_comerciais": dict_dados_comerciais_padrao()
                     }
                     carregar_servico_para_estado(n_nome)
                     salvar_estado_nuvem()
@@ -506,7 +549,8 @@ def render_ficha_tecnica():
                     "tipo_imposto": st.session_state.get("tipo_imposto", "Simples Nacional"),
                     "aliquota_imposto": st.session_state.get("aliquota_imposto", 6.0)
                 },
-                "preco_escolhido": st.session_state.get("preco_escolhido", 0.0)
+                "preco_escolhido": st.session_state.get("preco_escolhido", 0.0),
+                "dados_comerciais": {chave: st.session_state.get(chave, "") for chave in dict_dados_comerciais_padrao().keys()}
             }
         novo_servico = st.session_state["combo_servico"]
         carregar_servico_para_estado(novo_servico)
@@ -538,7 +582,8 @@ def render_ficha_tecnica():
                     "tipo_imposto": st.session_state["tipo_imposto"],
                     "aliquota_imposto": st.session_state["aliquota_imposto"]
                 },
-                "preco_escolhido": st.session_state["preco_escolhido"]
+                "preco_escolhido": st.session_state["preco_escolhido"],
+                "dados_comerciais": {chave: st.session_state.get(chave, "") for chave in dict_dados_comerciais_padrao().keys()}
             }
             salvar_estado_nuvem()
             st.success("Salvo com sucesso!")
@@ -600,7 +645,8 @@ def render_ficha_tecnica():
             st.session_state["db_servicos"][nome] = {
                 "tempo_min": 60.0, "maquinas": [], "repasse_fixo": 0.0, "repasse_percentual": 0.0, "custo_aluguel": 0.0, "insumos": [], "outros_custos": [],
                 "taxas": {"comissao": 0.0, "cenario_cartao": "Crédito 1x", "tipo_imposto": "Simples Nacional", "aliquota_imposto": 6.0},
-                "preco_escolhido": 0.0
+                "preco_escolhido": 0.0,
+                "dados_comerciais": dict_dados_comerciais_padrao()
             }
             carregar_servico_para_estado(nome)
             salvar_estado_nuvem()
@@ -635,10 +681,12 @@ def render_ficha_tecnica():
         st.session_state["servico_atual"] = ""
         salvar_estado_nuvem()
 
-    tab_dash, tab_custos, tab_precificacao, tab_gerenciar = st.tabs([
+    # ABA COMERCIAL INCLUÍDA
+    tab_dash, tab_custos, tab_precificacao, tab_comercial, tab_gerenciar = st.tabs([
         "📊 Dashboard e Resumo", 
         "⚙️ Estrutura e Custos", 
         "💲 Precificação e Taxas",
+        "📝 Dados Comerciais",
         "🛠️ Gerenciar Serviços"
     ])
 
@@ -809,7 +857,6 @@ def render_ficha_tecnica():
             st.markdown("##### 💡 Insights da Seleção:")
             col_in1, col_in2, col_in3 = st.columns(3)
             
-            # Novo cálculo baseado na Margem
             servico_top_margem = df_comp.loc[df_comp["Margem"].idxmax()] 
             margem_media = df_comp["Margem"].mean()
             
@@ -1018,131 +1065,6 @@ def render_ficha_tecnica():
                     st.session_state["df_ficha_outros_custos"] = df_outros_custos_padrao()
                     st.rerun()
 
-        st.divider()
-        st.subheader("🖥️ Máquinas e Equipamentos Utilizados")
-        if not df_maq.empty:
-            st.dataframe(df_maq.style.format({"custo": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
-        else:
-            st.info("Nenhuma máquina cadastrada para este serviço.")
-
-        tab_add_m, tab_ren_m, tab_del_m = st.tabs(["➕ Adicionar", "✏️ Editar", "🗑️ Excluir"])
-        with tab_add_m:
-            df_eq_global = st.session_state.get("df_lista_equipamentos", pd.DataFrame())
-            opcoes_eq = ["-- Digitar Manualmente --"] + df_eq_global["Nome do equipamento"].tolist() if not df_eq_global.empty else ["-- Digitar Manualmente --"]
-            sel_eq = st.selectbox("Buscar Equipamento Cadastrado:", opcoes_eq, key="sel_add_maq_ficha")
-            
-            default_nome_eq = sel_eq if sel_eq != "-- Digitar Manualmente --" else ""
-            default_custo_eq = 0.0
-            if sel_eq != "-- Digitar Manualmente --":
-                row = df_eq_global[df_eq_global["Nome do equipamento"] == sel_eq].iloc[0]
-                montante = row["Valor de aquisição (R$)"] + (row["Tempo de vida útil (anos)"] * row.get("Custo anual de manutenção (R$)", 0.0))
-                dep = montante / (row["Tempo de vida útil (anos)"] * 12) if row["Tempo de vida útil (anos)"] > 0 else 0
-                dias_uteis = st.session_state.get("dias_uteis_eq", 22.0)
-                default_custo_eq = dep / (row.get("Aplicações (média diária)", 1) * dias_uteis) if row.get("Aplicações (média diária)", 0) > 0 else 0
-
-            with st.form("form_add_maq", clear_on_submit=True):
-                c1, c2, c3 = st.columns([4, 2, 2])
-                n_nome = c1.text_input("Nome da Máquina", value=default_nome_eq)
-                n_custo = c2.number_input("Custo da Seção (R$)", value=float(default_custo_eq), min_value=0.0, step=10.0, format="%.2f")
-                if c3.form_submit_button("Adicionar"):
-                    if n_nome:
-                        novo_reg = pd.DataFrame([{"nome": n_nome, "custo": float(n_custo)}])
-                        st.session_state["df_ficha_maquinas"] = pd.concat([df_maq, novo_reg], ignore_index=True)
-                        st.rerun()
-
-        with tab_ren_m:
-            if not df_maq.empty:
-                c1, c2, c3 = st.columns([2, 2, 1])
-                maq_renomear = c1.selectbox("Máquina atual:", options=df_maq["nome"].tolist(), key="sel_ren_maq_ficha")
-                custo_atual_maq = df_maq[df_maq["nome"] == maq_renomear]["custo"].iloc[0]
-                novo_nome_maq = c1.text_input("Mudar nome para:", value=maq_renomear, key="in_ren_maq_ficha")
-                novo_custo_maq = c2.number_input("Mudar custo para (R$):", value=float(custo_atual_maq), min_value=0.0, step=10.0, format="%.2f", key="in_ren_custo_maq_ficha")
-                st.write("")
-                if c3.button("Atualizar", key="btn_salvar_maq", use_container_width=True):
-                    if novo_nome_maq:
-                        idx = df_maq.index[df_maq["nome"] == maq_renomear].tolist()[0]
-                        df_maq.at[idx, "nome"] = novo_nome_maq
-                        df_maq.at[idx, "custo"] = novo_custo_maq
-                        st.session_state["df_ficha_maquinas"] = df_maq
-                        st.rerun()
-
-        with tab_del_m:
-            if not df_maq.empty:
-                c1, c2, c3 = st.columns([2, 1, 1])
-                maq_remover = c1.selectbox("Remover máquina:", options=df_maq["nome"].tolist(), key="sel_rem_maq_ficha")
-                st.write("")
-                if c2.button("🗑️ Remover", key="btn_rem_maq", use_container_width=True):
-                    st.session_state["df_ficha_maquinas"] = df_maq[df_maq["nome"] != maq_remover]
-                    st.rerun()
-                st.write("")
-                if c3.button("⚠️ Excluir TODAS", key="btn_rem_todas_maq", type="primary", use_container_width=True):
-                    st.session_state["df_ficha_maquinas"] = df_maquinas_padrao()
-                    st.rerun()
-
-        st.divider()
-        st.subheader("💉 Materiais e Insumos Utilizados")
-        if not df_ins.empty:
-            st.dataframe(df_ins.style.format({"QT": "{:.2f}", "Preço (R$)": "R$ {:.3f}"}), use_container_width=True, hide_index=True)
-        else:
-            st.info("Nenhum insumo cadastrado para este serviço.")
-
-        tab_add_i, tab_ren_i, tab_del_i = st.tabs(["➕ Adicionar", "✏️ Editar", "🗑️ Excluir"])
-        with tab_add_i:
-            df_ins_db = st.session_state.get("df_lista_insumos", pd.DataFrame())
-            opcoes_ins = ["-- Digitar Manualmente --"] + df_ins_db["Material"].tolist() if not df_ins_db.empty else ["-- Digitar Manualmente --"]
-            sel_ins = st.selectbox("Buscar Insumo Cadastrado:", opcoes_ins, key="sel_add_ins_ficha")
-            
-            default_mat = sel_ins if sel_ins != "-- Digitar Manualmente --" else ""
-            default_preco = 0.0
-            if sel_ins != "-- Digitar Manualmente --":
-                row_ins = df_ins_db[df_ins_db["Material"] == sel_ins].iloc[0]
-                qt_base = float(row_ins.get("qt", 1.0))
-                qt_base = qt_base if qt_base > 0 else 1.0
-                default_preco = float(row_ins.get("valor", 0.0)) / qt_base
-
-            with st.form("form_add_ins_ficha", clear_on_submit=True):
-                c1, c2, c3, c4 = st.columns([3, 2, 2, 2])
-                n_mat = c1.text_input("Material", value=default_mat)
-                n_qt = c2.number_input("Qtd a usar", value=1.00, min_value=0.01, step=1.0)
-                n_preco = c3.number_input("Preço Un. (R$)", value=float(default_preco), min_value=0.0, step=0.10, format="%.3f")
-                if c4.form_submit_button("Adicionar"):
-                    if n_mat:
-                        novo_reg = pd.DataFrame([{"Material": n_mat, "QT": float(n_qt), "Preço (R$)": float(n_preco)}])
-                        st.session_state["df_ficha_insumos"] = pd.concat([df_ins, novo_reg], ignore_index=True)
-                        st.rerun()
-
-        with tab_ren_i:
-            if not df_ins.empty:
-                c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
-                ins_renomear = c1.selectbox("Insumo atual:", options=df_ins["Material"].tolist(), key="sel_ren_ins_ficha")
-                row_atual = df_ins[df_ins["Material"] == ins_renomear].iloc[0]
-                
-                novo_nome_ins = c1.text_input("Mudar nome para:", value=ins_renomear, key="in_ren_ins_ficha")
-                nova_qt_ins = c2.number_input("Mudar Qtd:", value=float(row_atual["QT"]), min_value=0.01, step=1.0, key="in_ren_qt_ins")
-                novo_preco_ins = c3.number_input("Mudar Preço Un.:", value=float(row_atual["Preço (R$)"]), min_value=0.0, step=0.1, format="%.3f", key="in_ren_pr_ins")
-                st.write("")
-                if c4.button("Atualizar", key="btn_salvar_ins", use_container_width=True):
-                    if novo_nome_ins:
-                        idx = df_ins.index[df_ins["Material"] == ins_renomear].tolist()[0]
-                        df_ins.at[idx, "Material"] = novo_nome_ins
-                        df_ins.at[idx, "QT"] = nova_qt_ins
-                        df_ins.at[idx, "Preço (R$)"] = novo_preco_ins
-                        st.session_state["df_ficha_insumos"] = df_ins
-                        st.rerun()
-
-        with tab_del_i:
-            if not df_ins.empty:
-                c1, c2, c3 = st.columns([2, 1, 1])
-                ins_remover = c1.selectbox("Remover insumo:", options=df_ins["Material"].tolist(), key="sel_rem_ins_ficha")
-                st.write("")
-                if c2.button("🗑️ Remover", key="btn_rem_ins", use_container_width=True):
-                    st.session_state["df_ficha_insumos"] = df_ins[df_ins["Material"] != ins_remover]
-                    st.rerun()
-                st.write("")
-                if c3.button("⚠️ Excluir TODOS", key="btn_rem_todos_ins", type="primary", use_container_width=True):
-                    st.session_state["df_ficha_insumos"] = df_insumos_padrao()
-                    st.rerun()
-
     with tab_precificacao:
         st.subheader("Configuração Fiscal e Repasses")
         col_f1, col_f2, col_f3 = st.columns(3)
@@ -1161,7 +1083,6 @@ def render_ficha_tecnica():
         st.number_input("PREÇO DE TABELA FINAL (R$)", min_value=0.0, step=10.0, format="%.2f", key="preco_escolhido")
         st.caption(f"💡 **Dica do Sistema:** Para ter **LUCRO ZERO**, seu preço de tabela precisaria ser de pelo menos **R$ {preco_sugerido_break_even:,.2f}**.")
         
-        # --- NOVO BLOCO DE EDIÇÃO EM MASSA AQUI ---
         st.divider()
         st.markdown(f"<h4 style='color: {COR_CABECALHO};'>🔄 Edição Inteligente em Lote</h4>", unsafe_allow_html=True)
         
@@ -1222,6 +1143,48 @@ def render_ficha_tecnica():
                     st.success(f"Todas as taxas foram padronizadas com sucesso em {len(servicos_alvo)} serviços!")
             else:
                 st.warning("👆 Selecione pelo menos um serviço acima para exibir as opções de edição.")
+
+    # NOVO: ABA EXCLUSIVA PARA DADOS COMERCIAIS
+    with tab_comercial:
+        st.subheader("📝 Detalhamento Comercial, Técnico e Playbook")
+        st.info("💡 As informações preenchidas aqui aparecerão automaticamente nas propostas em Word geradas no módulo de Protocolos e no Playbook Comercial.")
+
+        st.markdown("#### 1. Dados Estratégicos para o Playbook (Vendas)")
+        st.text_input("Objetivo Principal (Proposta)", key="dc_objetivo", placeholder="Ex: Tratar refluxo de veia safena com abordagem minimamente invasiva...")
+        
+        c1, c2 = st.columns(2)
+        c1.text_input("Público-Alvo", key="dc_publico", placeholder="Ex: Pacientes com refluxo de veia safena...")
+        c2.text_input("Duração / Formato Comercial", key="dc_duracao", placeholder="Ex: Sessão única, com retorno em 30 dias.")
+        
+        st.text_area("Como o produto acontece (Resumo)", key="dc_como_acontece", height=80)
+        st.text_area("Etapas Principais", key="dc_etapas", placeholder="Ex: 1. Avaliação, 2. Procedimento, 3. Pós-imediato, 4. Retorno...", height=100)
+        
+        st.markdown("##### 💬 Scripts de Venda")
+        sc1, sc2, sc3 = st.columns(3)
+        sc1.text_area("Apresentação (WhatsApp/Telefone)", key="dc_script_apres", height=120)
+        sc2.text_area("Conexão com Benefício", key="dc_script_conexao", height=120)
+        sc3.text_area("Fechamento", key="dc_script_fechamento", height=120)
+
+        st.markdown("#### 2. Detalhamento Técnico do Serviço")
+        col1, col2 = st.columns(2)
+        col1.text_input("Profissional Responsável pela Execução", key="dc_prof_resp")
+        col2.text_input("Tempo de Execução do Serviço", key="dc_tempo_exec")
+
+        st.text_area("Características do Serviço", key="dc_caracteristicas", height=80)
+        st.text_area("Incluso no serviço:", key="dc_incluso", height=80)
+        st.text_area("Tecnologias e Técnicas Utilizadas:", key="dc_tecnologias", height=80)
+        st.text_area("Profissionais e custos envolvidos", key="dc_prof_custos", height=80)
+        st.text_area("Insumos / Material Utilizados", key="dc_insumos", height=80)
+        st.text_input("Condições de Pagamento:", key="dc_pagamento")
+        st.text_area("Benefícios para o Paciente", key="dc_beneficios", height=80)
+        st.text_area("Diferenciais do Serviço", key="dc_diferenciais", height=80)
+        st.text_input("Tempo Estimado de Recuperação", key="dc_tempo_recup")
+        st.text_area("Requisitos para o procedimento", key="dc_requisitos", height=80)
+        st.text_area("Preparo para o Procedimento", key="dc_preparo", height=80)
+        st.text_area("Cuidados Pós-Procedimento", key="dc_cuidados_pos", height=80)
+        st.text_area("Perguntas Frequentes (FAQ)", key="dc_faq", height=80)
+        st.text_area("Principais Objeções e Respostas de Contorno", key="dc_objecoes", height=80)
+
 
     with tab_gerenciar:
         st.info("Aqui você pode criar um serviço em branco, renomear um existente ou apagar serviços que não usa mais.")
@@ -1941,7 +1904,7 @@ def render_protocolos():
             st.metric("Total Pago à Equipe", f"R$ {repasse_tot:,.2f}")
 
         # --- 5. GERAÇÃO DE PROPOSTA ---
-        def gerar_word_proposta(nome_pacote, desc, benef, df_itens, total_venda):
+        def gerar_word_proposta(nome_pacote, desc, benef, df_itens, total_venda, bdd_servicos):
             doc = Document()
             doc.add_heading(f"Proposta Comercial: {nome_pacote}", 0)
             if desc: doc.add_paragraph(f"Descrição: {desc}\n")
@@ -1965,6 +1928,49 @@ def render_protocolos():
             p = doc.add_paragraph("\n")
             p.add_run(f"Valor Total do Investimento: R$ {total_venda:,.2f}").bold = True
             
+            # Adicionando a página de Detalhamento Comercial
+            doc.add_page_break()
+            doc.add_heading("Detalhamento da Jornada e Serviços", level=1)
+            
+            for index, row in df_itens.iterrows():
+                nome_serv = str(row['Serviço'])
+                doc.add_heading(nome_serv, level=2)
+                
+                # Busca as informações atreladas a este serviço específico
+                ficha_serv = bdd_servicos.get(nome_serv, {})
+                dc = ficha_serv.get("dados_comerciais", {})
+                
+                # Mapeia os campos para imprimir apenas os que foram preenchidos
+                campos_para_imprimir = {
+                    "Profissional Responsável": dc.get("dc_prof_resp"),
+                    "Características do Serviço": dc.get("dc_caracteristicas"),
+                    "Incluso no Serviço": dc.get("dc_incluso"),
+                    "Tecnologias e Técnicas Utilizadas": dc.get("dc_tecnologias"),
+                    "Profissionais e Custos Envolvidos": dc.get("dc_prof_custos"),
+                    "Insumos / Material Utilizados": dc.get("dc_insumos"),
+                    "Condições de Pagamento": dc.get("dc_pagamento"),
+                    "Benefícios para o Paciente": dc.get("dc_beneficios"),
+                    "Diferenciais do Serviço": dc.get("dc_diferenciais"),
+                    "Tempo de Execução": dc.get("dc_tempo_exec"),
+                    "Tempo Estimado de Recuperação": dc.get("dc_tempo_recup"),
+                    "Requisitos para o Procedimento": dc.get("dc_requisitos"),
+                    "Preparo para o Procedimento": dc.get("dc_preparo"),
+                    "Cuidados Pós-Procedimento": dc.get("dc_cuidados_pos"),
+                    "Perguntas Frequentes (FAQ)": dc.get("dc_faq"),
+                    "Principais Objeções e Respostas": dc.get("dc_objecoes")
+                }
+                
+                tem_dado = False
+                for titulo, valor in campos_para_imprimir.items():
+                    if valor and str(valor).strip() != "":
+                        tem_dado = True
+                        parag = doc.add_paragraph()
+                        parag.add_run(f"{titulo}: ").bold = True
+                        parag.add_run(str(valor))
+                        
+                if not tem_dado:
+                    doc.add_paragraph("Nenhum detalhamento comercial cadastrado para este serviço.", style='Intense Quote')
+            
             buffer = io.BytesIO()
             doc.save(buffer)
             buffer.seek(0)
@@ -1979,7 +1985,14 @@ def render_protocolos():
                 salvar_estado_nuvem()
                 st.success("Protocolo arquivado com sucesso!")
         with c_save2:
-            arquivo_word = gerar_word_proposta(st.session_state.protocolo_atual["nome"], st.session_state.protocolo_atual["descricao"], st.session_state.protocolo_atual["beneficio"], df_prot, venda_tot)
+            arquivo_word = gerar_word_proposta(
+                st.session_state.protocolo_atual["nome"], 
+                st.session_state.protocolo_atual["descricao"], 
+                st.session_state.protocolo_atual["beneficio"], 
+                df_prot, 
+                venda_tot,
+                db_servicos
+            )
             st.download_button(
                 label="📄 Gerar Proposta (Word)",
                 data=arquivo_word,
@@ -2012,6 +2025,202 @@ def render_protocolos():
     else:
         st.info("Nenhum protocolo arquivado ainda.")
 
+def render_playbook():
+    cabecalho_padrao("📚 PLAYBOOK COMERCIAL")
+    
+    st.markdown("Este módulo consolida as informações das Fichas Técnicas para apoiar o time de vendas (Recepção/CRC) na apresentação dos produtos, qualificações e negociações.")
+    
+    db_servicos = st.session_state.get("db_servicos", {})
+    if not db_servicos:
+        st.warning("Cadastre serviços na aba Ficha Técnica para visualizar o Playbook.")
+        return
+
+    todas_opcoes = list(db_servicos.keys())
+    
+    # --- LÓGICA DE EXPORTAÇÃO DO PLAYBOOK COMPLETO (WORD) ---
+    def gerar_word_playbook_completo():
+        doc = Document()
+        
+        # CAPA
+        if os.path.exists(CAMINHO_LOGO):
+            doc.add_picture(CAMINHO_LOGO, width=Inches(2.5))
+            last_paragraph = doc.paragraphs[-1]
+            last_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+        doc.add_heading("PLAYBOOK COMERCIAL", 0)
+        doc.add_paragraph("Versão consolidada com as informações das fichas técnicas comerciais adaptadas.")
+        doc.add_page_break()
+
+        # VISÃO GERAL
+        doc.add_heading("Visão Geral do Playbook", level=1)
+        table_vg = doc.add_table(rows=1, cols=3)
+        table_vg.style = 'Table Grid'
+        hdr_cells = table_vg.rows[0].cells
+        hdr_cells[0].text = 'Produto'
+        hdr_cells[1].text = 'Proposta Principal'
+        hdr_cells[2].text = 'Formato Comercial'
+        
+        for nome_servico, dados in db_servicos.items():
+            dc = dados.get("dados_comerciais", {})
+            row_cells = table_vg.add_row().cells
+            row_cells[0].text = nome_servico.upper()
+            row_cells[1].text = dc.get("dc_objetivo", "")
+            row_cells[2].text = dc.get("dc_duracao", "")
+            
+        doc.add_page_break()
+        
+        # DETALHAMENTO DOS PRODUTOS
+        for nome_servico, dados in db_servicos.items():
+            dc = dados.get("dados_comerciais", {})
+            
+            doc.add_heading(f"{nome_servico.upper()}", level=1)
+            
+            doc.add_heading("Objetivo", level=2)
+            doc.add_paragraph(dc.get("dc_objetivo", ""))
+            
+            doc.add_heading("Benefícios clínicos (tradução para venda)", level=2)
+            doc.add_paragraph(dc.get("dc_beneficios", ""))
+            
+            doc.add_heading("Duração e Público-alvo", level=2)
+            doc.add_paragraph(f"Duração: {dc.get('dc_duracao', '')}\nPúblico-alvo: {dc.get('dc_publico', '')}")
+            
+            doc.add_heading("Como acontece e Etapas", level=2)
+            doc.add_paragraph(dc.get("dc_como_acontece", ""))
+            doc.add_paragraph(dc.get("dc_etapas", ""))
+            
+            doc.add_heading("Scripts de Venda", level=2)
+            p = doc.add_paragraph()
+            p.add_run("Apresentação: ").bold = True
+            p.add_run(dc.get("dc_script_apres", "") + "\n")
+            p.add_run("Conexão: ").bold = True
+            p.add_run(dc.get("dc_script_conexao", "") + "\n")
+            p.add_run("Fechamento: ").bold = True
+            p.add_run(dc.get("dc_script_fechamento", ""))
+            
+            doc.add_heading("Objeções", level=2)
+            doc.add_paragraph(dc.get("dc_objecoes", ""))
+            
+            doc.add_page_break()
+            
+        # ESTRUTURA DE CUSTOS E RESUMO FINANCEIRO (Tabela BI)
+        doc.add_heading("Estrutura de Custos e Precificação", level=1)
+        
+        table_fin = doc.add_table(rows=1, cols=6)
+        table_fin.style = 'Table Grid'
+        hdr = table_fin.rows[0].cells
+        hdr[0].text = 'Serviço'
+        hdr[1].text = 'Preço (R$)'
+        hdr[2].text = 'Deduções (Imp/Tx)'
+        hdr[3].text = 'Repasse'
+        hdr[4].text = 'Custo Operac.'
+        hdr[5].text = 'Lucro Líq / %'
+        
+        df_taxas_globais = st.session_state.get("df_lista_taxas", pd.DataFrame())
+        valor_hora_global = st.session_state.get("valor_hora", 48.14)
+        usa_indireto = st.session_state.get("indireto") == "Sim"
+
+        for nome, dados_s in db_servicos.items():
+            preco = dados_s.get("preco_escolhido", 0.0)
+            t_min = dados_s.get("tempo_min", 60.0)
+            
+            # Matemática Oculta
+            txs = dados_s.get("taxas", {})
+            cenario = txs.get("cenario_cartao", "Crédito 1x")
+            t_car = 0.0
+            if not df_taxas_globais.empty and cenario in df_taxas_globais["Taxa"].values:
+                t_car = float(df_taxas_globais[df_taxas_globais["Taxa"] == cenario]["Porcentagem (%)"].iloc[0])
+            t_imp = txs.get("aliquota_imposto", 6.0)
+            t_com = txs.get("comissao", 0.0)
+            
+            v_imp = preco * (t_imp / 100)
+            v_car = preco * (t_car / 100)
+            v_com = preco * (t_com / 100)
+            deducoes = v_imp + v_car + v_com
+            
+            liq_temp = preco - deducoes
+            p_rep_med = dados_s.get("repasse_percentual", 0.0)
+            v_rep_med = liq_temp * (p_rep_med / 100)
+            
+            c_exec = (t_min / 60) * valor_hora_global if usa_indireto else 0.0
+            df_m = pd.DataFrame(dados_s.get("maquinas", []))
+            c_maq = pd.to_numeric(df_m["custo"], errors="coerce").fillna(0.0).sum() if not df_m.empty else 0.0
+            df_i = pd.DataFrame(dados_s.get("insumos", []))
+            c_ins = (pd.to_numeric(df_i["QT"], errors="coerce").fillna(0.0) * pd.to_numeric(df_i["Preço (R$)"], errors="coerce").fillna(0.0)).sum() if not df_i.empty else 0.0
+            df_o = pd.DataFrame(dados_s.get("outros_custos", []))
+            c_outros_s = pd.to_numeric(df_o["Valor (R$)"], errors="coerce").fillna(0.0).sum() if not df_o.empty else 0.0
+            c_alu = dados_s.get("custo_aluguel", 0.0) * (t_min / 60)
+            
+            c_tot = c_exec + c_maq + c_ins + c_alu + dados_s.get("repasse_fixo", 0.0) + c_outros_s
+            lucro = liq_temp - v_rep_med - c_tot
+            margem = (lucro / preco * 100) if preco > 0 else 0.0
+            
+            row = table_fin.add_row().cells
+            row[0].text = nome
+            row[1].text = f"R$ {preco:,.2f}"
+            row[2].text = f"R$ {deducoes:,.2f}"
+            row[3].text = f"R$ {v_rep_med:,.2f}"
+            row[4].text = f"R$ {c_tot:,.2f}"
+            row[5].text = f"R$ {lucro:,.2f} ({margem:.1f}%)"
+
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        return buffer
+
+    # --- BOTÃO DE EXPORTAÇÃO ---
+    c_btn, _ = st.columns([1, 2])
+    with c_btn:
+        buffer_playbook = gerar_word_playbook_completo()
+        st.download_button(
+            label="📄 BAIXAR PLAYBOOK COMPLETO (WORD)",
+            data=buffer_playbook,
+            file_name="Playbook_Comercial.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True,
+            type="primary"
+        )
+    
+    st.divider()
+
+    # --- MODO INTERATIVO DE TELA ---
+    st.markdown("### 🔍 Pesquisa Rápida (Recepção/Vendas)")
+    servico_alvo = st.selectbox("Selecione o Serviço para ver o roteiro:", todas_opcoes)
+    
+    if servico_alvo:
+        dados_ativos = db_servicos[servico_alvo].get("dados_comerciais", dict_dados_comerciais_padrao())
+        
+        col1, col2 = st.columns([1.5, 1])
+        
+        with col1:
+            st.markdown(f"#### {servico_alvo.upper()}")
+            st.info(f"**🎯 Objetivo:**\n{dados_ativos.get('dc_objetivo', 'Não preenchido.')}")
+            st.write(f"**✨ Benefícios:** {dados_ativos.get('dc_beneficios', 'Não preenchido.')}")
+            
+            with st.expander("Ver Etapas e Como Funciona", expanded=True):
+                st.write(f"**Como acontece:** {dados_ativos.get('dc_como_acontece', '')}")
+                st.write(f"**Etapas:**\n{dados_ativos.get('dc_etapas', '')}")
+
+        with col2:
+            st.markdown("##### 💵 Condições Base")
+            preco_b = db_servicos[servico_alvo].get("preco_escolhido", 0.0)
+            st.metric("Preço Tabela", f"R$ {preco_b:,.2f}")
+            st.write(f"**Duração:** {dados_ativos.get('dc_duracao', '')}")
+            st.write(f"**Público:** {dados_ativos.get('dc_publico', '')}")
+            
+        st.divider()
+        
+        st.markdown("### 💬 Roteiro de Conversão (Scripts)")
+        sc1, sc2, sc3 = st.columns(3)
+        with sc1:
+            st.success(f"**1. Apresentação**\n\n{dados_ativos.get('dc_script_apres', '')}")
+        with sc2:
+            st.success(f"**2. Conexão**\n\n{dados_ativos.get('dc_script_conexao', '')}")
+        with sc3:
+            st.success(f"**3. Fechamento**\n\n{dados_ativos.get('dc_script_fechamento', '')}")
+            
+        st.markdown("### 🛡️ Contorno de Objeções")
+        st.warning(f"{dados_ativos.get('dc_objecoes', 'Nenhuma objeção mapeada.')}")
+
 
 # ==========================================
 # ROTEAMENTO
@@ -2023,3 +2232,4 @@ elif modulo_selecionado == "3. Registro de Equipamentos": render_equipamentos()
 elif modulo_selecionado == "4. Insumos e Materiais": render_insumos()
 elif modulo_selecionado == "5. Impostos e Taxas": render_taxas()
 elif modulo_selecionado == "6. Protocolos (Jornadas)": render_protocolos()
+elif modulo_selecionado == "7. Playbook Comercial": render_playbook()
