@@ -65,3 +65,16 @@ git push
 
 UX (Experiência design)
 dashboards numa aba só, barras nítidas de busca
+
+atualmente código princiapl sem falhas (app2.py)
+
+
+Código de cores:
+#00a2b2 
+
+
+
+2 página:  cor #ffffff fonte: Open Sauce, fonte: 14,1
+Objetivo. Organizar em um único documento a apresentação comercial dos principais produtos da Dra. Thacira Dantas, padronizando a forma de explicar, ofertar e sustentar o fechamento comercial.
+Escopo. Este material consolida [Serviços da ficha técnica].
+Uso recomendado. Apoio ao time comercial, recepção, CRC e equipe clínica durante apresentação, qualificação, negociação e acompanhamento do paciente.
