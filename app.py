@@ -248,22 +248,18 @@ def inicializar_padroes_caso_vazio():
     salvar_estado_nuvem()
 
 def calcular_hora_clinica_global():
-    # 1. Calculo Despesa Mensal Media
     despesa_mensal_media = 0.0
     for categoria, df_atual in st.session_state.get("df_custos_categorias", {}).items():
         tot_cat = pd.to_numeric(df_atual["MENSAL (R$)"], errors="coerce").fillna(0.0).sum() if not df_atual.empty else 0.0
         despesa_mensal_media += tot_cat
 
-    # 2. Resgate de Configurações
     semanas_mes = st.session_state.get("semanas_mes", 4.2)
     ocupacao_pct = st.session_state.get("ocupacao_pct", 50.0)
     horas_semanais_config = st.session_state.get("horas_semanais_config", 40.0)
 
-    # 3. Salas Produtivas
     df_salas = st.session_state.get("df_salas", pd.DataFrame())
     qtd_salas_produtivas = len(df_salas)
 
-    # 4. Cálculo Final
     horas_mensais_por_sala = horas_semanais_config * semanas_mes
     horas_totais_todas_salas = horas_mensais_por_sala * qtd_salas_produtivas
     fator_ocupacao = (ocupacao_pct / 100) if ocupacao_pct > 0 else 1.0
@@ -279,7 +275,6 @@ if "dados_carregados" not in st.session_state or st.session_state["dados_carrega
         inicializar_padroes_caso_vazio()
     st.session_state["dados_carregados"] = True
 
-# Força o calculo global da hora clinica independente de qual aba o usuario abrir primeiro
 calcular_hora_clinica_global()
 
 if "dias_uteis_eq" not in st.session_state:
@@ -445,9 +440,11 @@ def render_onboarding():
 def render_ficha_tecnica():
     with st.sidebar:
         st.header("⚙️ Parâmetros Globais")
-        st.selectbox("Considerar custo de hora clínica como indireto?", ["Sim", "Não"], key="indireto")
         
-        # Leitura da Hora Clínica gerada na aba de Rateio
+        # Correção da aba lateral para manter a seleção do indireto a salvo de apagões
+        val_indireto = st.selectbox("Considerar custo de hora clínica como indireto?", ["Sim", "Não"], index=0 if st.session_state.get("indireto", "Sim") == "Sim" else 1)
+        st.session_state["indireto"] = val_indireto
+        
         valor_hora_atual = st.session_state.get("hora_clinica_global_real", 0.0)
         st.markdown(f"**Valor da Hora Clínica:** R$ {valor_hora_atual:.2f}")
         st.caption("*(Calculado automaticamente na aba Estrutura de Custos)*")
@@ -976,9 +973,16 @@ def render_ficha_tecnica():
     with tab_custos:
         st.subheader("Tempo e Repasses")
         c_t1, c_t2, c_t3 = st.columns(3)
-        c_t1.number_input("TEMPO de execução (Minutos):", min_value=0.0, step=5.0, format="%.0f", key="tempo_min")
-        c_t2.number_input("Aluguel Máquina (R$/Hora):", min_value=0.0, step=10.0, format="%.2f", key="custo_aluguel", help="O sistema calculará proporcional ao tempo da sessão.")
-        c_t3.number_input("Repasse profissionais (Fixo R$):", min_value=0.0, step=10.0, format="%.2f", key="repasse_fixo")
+        
+        # Correções de preservação de estado da aba Custos
+        t_min_val = c_t1.number_input("TEMPO de execução (Minutos):", value=float(st.session_state.get("tempo_min", 60.0)), min_value=0.0, step=5.0, format="%.0f")
+        st.session_state["tempo_min"] = t_min_val
+        
+        c_aluguel_val = c_t2.number_input("Aluguel Máquina (R$/Hora):", value=float(st.session_state.get("custo_aluguel", 0.0)), min_value=0.0, step=10.0, format="%.2f", help="O sistema calculará proporcional ao tempo da sessão.")
+        st.session_state["custo_aluguel"] = c_aluguel_val
+        
+        r_fixo_val = c_t3.number_input("Repasse profissionais (Fixo R$):", value=float(st.session_state.get("repasse_fixo", 0.0)), min_value=0.0, step=10.0, format="%.2f")
+        st.session_state["repasse_fixo"] = r_fixo_val
         
         st.divider()
         st.subheader("👥 Outros Custos (Equipe, Feriados, Adicionais)")
@@ -1167,19 +1171,33 @@ def render_ficha_tecnica():
     with tab_precificacao:
         st.subheader("Configuração Fiscal e Repasses")
         col_f1, col_f2, col_f3 = st.columns(3)
-        col_f1.selectbox("Modelo / Tipo de Imposto", ["Simples Nacional", "Lucro Presumido", "Lucro Real", "Isento/PF"], key="tipo_imposto")
-        col_f2.number_input("Alíquota do Imposto (%)", min_value=0.0, step=0.1, format="%.2f", key="aliquota_imposto")
-        col_f3.number_input("Repasse Médico (%)", min_value=0.0, step=1.0, format="%.2f", key="repasse_percentual", help="Calculado em cima do Valor Líquido (após impostos e taxas).")
+        
+        # Correções de preservação de estado da aba Precificação
+        opcoes_imposto = ["Simples Nacional", "Lucro Presumido", "Lucro Real", "Isento/PF"]
+        idx_imp = opcoes_imposto.index(st.session_state.get("tipo_imposto", "Simples Nacional")) if st.session_state.get("tipo_imposto", "Simples Nacional") in opcoes_imposto else 0
+        t_imposto_val = col_f1.selectbox("Modelo / Tipo de Imposto", opcoes_imposto, index=idx_imp)
+        st.session_state["tipo_imposto"] = t_imposto_val
+        
+        a_imposto_val = col_f2.number_input("Alíquota do Imposto (%)", value=float(st.session_state.get("aliquota_imposto", 6.0)), min_value=0.0, step=0.1, format="%.2f")
+        st.session_state["aliquota_imposto"] = a_imposto_val
+        
+        r_pct_val = col_f3.number_input("Repasse Médico (%)", value=float(st.session_state.get("repasse_percentual", 0.0)), min_value=0.0, step=1.0, format="%.2f", help="Calculado em cima do Valor Líquido (após impostos e taxas).")
+        st.session_state["repasse_percentual"] = r_pct_val
 
         st.divider()
         opcoes_taxas = df_taxas_globais["Taxa"].tolist() if not df_taxas_globais.empty else ["Nenhuma taxa cadastrada"]
         
         col_t1, col_t2 = st.columns(2)
-        col_t1.selectbox("Cenário de Pagamento Padrão", opcoes_taxas, key="cenario_cartao")
-        col_t2.number_input("COMISSÃO Venda (%)", min_value=0.0, step=0.1, format="%.2f", key="taxa_comissao")
+        idx_cen = opcoes_taxas.index(st.session_state.get("cenario_cartao", opcoes_taxas[0])) if st.session_state.get("cenario_cartao") in opcoes_taxas else 0
+        cen_cartao_val = col_t1.selectbox("Cenário de Pagamento Padrão", opcoes_taxas, index=idx_cen)
+        st.session_state["cenario_cartao"] = cen_cartao_val
+        
+        tx_comissao_val = col_t2.number_input("COMISSÃO Venda (%)", value=float(st.session_state.get("taxa_comissao", 0.0)), min_value=0.0, step=0.1, format="%.2f")
+        st.session_state["taxa_comissao"] = tx_comissao_val
 
         st.markdown("### Preço de Venda")
-        st.number_input("PREÇO DE TABELA FINAL (R$)", min_value=0.0, step=10.0, format="%.2f", key="preco_escolhido")
+        preco_esc_val = st.number_input("PREÇO DE TABELA FINAL (R$)", value=float(st.session_state.get("preco_escolhido", 0.0)), min_value=0.0, step=10.0, format="%.2f")
+        st.session_state["preco_escolhido"] = preco_esc_val
         st.caption(f"💡 **Dica do Sistema:** Para ter **LUCRO ZERO**, seu preço de tabela precisaria ser de pelo menos **R$ {preco_sugerido_break_even:,.2f}**.")
         
         st.divider()
@@ -1402,10 +1420,19 @@ def render_custos_fixos():
         st.markdown("Configure as salas da sua clínica para descobrir o custo exato de cada espaço em M², por turno e por hora clínica. **Para calcular o número de salas com potencial produtivo e metragem total, basta adicionar as salas abaixo.**")
 
         col_c1, col_c2, col_c3, col_c4 = st.columns(4)
-        semanas_mes = col_c1.number_input("Semanas por Mês", step=0.1, key="semanas_mes", help="Padrão utilizado na planilha é 4.2 semanas.")
-        turnos_semana = col_c2.number_input("Turnos na Semana", step=1.0, key="turnos_semana", help="Ex: 2 turnos (Manhã/Tarde) x 5 dias = 10 turnos por sala")
-        ocupacao_pct = col_c3.number_input("% Ocupação Estimada", step=5.0, max_value=100.0, key="ocupacao_pct")
-        horas_semanais_config = col_c4.number_input("Horas na Semana (Sala)", step=1.0, key="horas_semanais_config", help="Quantas horas uma única sala funciona na semana.")
+        
+        # Correções de preservação de estado da aba Rateio por M2
+        semanas_mes_val = col_c1.number_input("Semanas por Mês", value=float(st.session_state.get("semanas_mes", 4.2)), step=0.1, help="Padrão utilizado na planilha é 4.2 semanas.")
+        st.session_state["semanas_mes"] = semanas_mes_val
+        
+        turnos_semana_val = col_c2.number_input("Turnos na Semana", value=float(st.session_state.get("turnos_semana", 10.0)), step=1.0, help="Ex: 2 turnos (Manhã/Tarde) x 5 dias = 10 turnos por sala")
+        st.session_state["turnos_semana"] = turnos_semana_val
+        
+        ocupacao_pct_val = col_c3.number_input("% Ocupação Estimada", value=float(st.session_state.get("ocupacao_pct", 50.0)), step=5.0, max_value=100.0)
+        st.session_state["ocupacao_pct"] = ocupacao_pct_val
+        
+        horas_semanais_config_val = col_c4.number_input("Horas na Semana (Sala)", value=float(st.session_state.get("horas_semanais_config", 40.0)), step=1.0, help="Quantas horas uma única sala funciona na semana.")
+        st.session_state["horas_semanais_config"] = horas_semanais_config_val
 
         st.divider()
         st.markdown("**1. Gerencie suas Salas e Metragens (M²):**")
@@ -1452,13 +1479,13 @@ def render_custos_fixos():
         qtd_salas_produtivas = len(df_salas_calc)
         
         custo_por_m2 = despesa_mensal_media / total_m2 if total_m2 > 0 else 0
-        horas_mensais_por_sala = horas_semanais_config * semanas_mes
-        fator_ocupacao = (ocupacao_pct / 100) if ocupacao_pct > 0 else 1.0
+        horas_mensais_por_sala = st.session_state["horas_semanais_config"] * st.session_state["semanas_mes"]
+        fator_ocupacao = (st.session_state["ocupacao_pct"] / 100) if st.session_state["ocupacao_pct"] > 0 else 1.0
 
         if not df_salas_calc.empty:
             df_salas_calc["Custo Mensal por M2/Sala"] = df_salas_calc["M2"] * custo_por_m2
             
-            df_salas_calc["Custo Turno Mensal"] = df_salas_calc["Custo Mensal por M2/Sala"] / turnos_semana if turnos_semana > 0 else 0
+            df_salas_calc["Custo Turno Mensal"] = df_salas_calc["Custo Mensal por M2/Sala"] / st.session_state["turnos_semana"] if st.session_state["turnos_semana"] > 0 else 0
             
             horas_ocupadas_por_sala = horas_mensais_por_sala * fator_ocupacao
             df_salas_calc["Custo Hora /Sala"] = df_salas_calc["Custo Mensal por M2/Sala"] / horas_ocupadas_por_sala if horas_ocupadas_por_sala > 0 else 0
@@ -1468,7 +1495,7 @@ def render_custos_fixos():
         k_s1.metric("Total Metragem Produtiva", f"{total_m2:.2f} M²")
         k_s2.metric("Qtd Salas Produtivas", f"{qtd_salas_produtivas}")
         k_s3.metric("Custo por M²", f"R$ {custo_por_m2:,.2f}")
-        k_s4.metric("Hora Clínica (com Ocupação)", f"R$ {hora_clinica_global_real:,.2f}", help=f"Considerando {ocupacao_pct}% de preenchimento da agenda de todas as salas juntas.")
+        k_s4.metric("Hora Clínica (com Ocupação)", f"R$ {hora_clinica_global_real:,.2f}", help=f"Considerando {st.session_state['ocupacao_pct']}% de preenchimento da agenda de todas as salas juntas.")
 
         st.write("")
         st.markdown("**3. Tabela de Rateio Completo (Valores Finais):**")
@@ -1628,8 +1655,8 @@ def render_equipamentos():
             st.rerun()
 
     st.divider()
-    dias_uteis = st.number_input("Dias úteis no mês para cálculo:", min_value=1.0, value=st.session_state["dias_uteis_eq"], step=1.0, format="%.0f")
-    st.session_state["dias_uteis_eq"] = dias_uteis
+    dias_uteis_val = st.number_input("Dias úteis no mês para cálculo:", min_value=1.0, value=float(st.session_state.get("dias_uteis_eq", 22.0)), step=1.0, format="%.0f")
+    st.session_state["dias_uteis_eq"] = dias_uteis_val
 
     df_calc = st.session_state["df_lista_equipamentos"].copy()
     if "Capacidade aplicações/dia" in df_calc.columns or "Capacidade de Aplicações / dia (R$)" in df_calc.columns:
@@ -1647,7 +1674,7 @@ def render_equipamentos():
     if not df_calc.empty:
         df_calc["Montante Investido"] = df_calc["Valor de aquisição (R$)"] + (df_calc["Tempo de vida útil (anos)"] * df_calc.get("Custo anual de manutenção (R$)", 0.0))
         df_calc["Depreciação Mensal"] = df_calc.apply(lambda row: row["Montante Investido"] / (row.get("Tempo de vida útil (anos)", 1) * 12) if row.get("Tempo de vida útil (anos)", 0) > 0 else 0, axis=1)
-        df_calc["Custo por Sessão"] = df_calc.apply(lambda row: row["Depreciação Mensal"] / (row.get("Aplicações (média diária)", 1) * dias_uteis) if row.get("Aplicações (média diária)", 0) > 0 else 0, axis=1)
+        df_calc["Custo por Sessão"] = df_calc.apply(lambda row: row["Depreciação Mensal"] / (row.get("Aplicações (média diária)", 1) * st.session_state["dias_uteis_eq"]) if row.get("Aplicações (média diária)", 0) > 0 else 0, axis=1)
         
         formato_tabela = {
             "Valor de aquisição (R$)": "R$ {:,.2f}", "Capacidade de Aplicações / dia (Qtd)": "{:,.2f}",
