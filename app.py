@@ -1958,7 +1958,7 @@ def render_protocolos():
                     salvar_estado_nuvem()
                     st.rerun()
     else:
-        st.info("Nenhum protocolo arquivado ainda.")
+        st.info("Nenhum protocolo arquivado ainda no momento")
 
 if modulo_selecionado == "0. Início (Onboarding)": render_onboarding()
 elif modulo_selecionado == "1. Estrutura de Custos e Formação da Hora Clínica": render_custos_fixos()
