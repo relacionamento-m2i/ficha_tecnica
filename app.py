@@ -115,7 +115,13 @@ def salvar_estado_nuvem():
             "df_lista_taxas": st.session_state.get("df_lista_taxas", pd.DataFrame()).to_dict(orient="records"),
             "df_custos_categorias": {k: v.to_dict(orient="records") for k, v in st.session_state.get("df_custos_categorias", {}).items()},
             "df_salas": st.session_state.get("df_salas", pd.DataFrame()).to_dict(orient="records"),
-            "protocolos": st.session_state.get("protocolos_db", [])
+            "protocolos": st.session_state.get("protocolos_db", []),
+            "config_gerais": {
+                "semanas_mes": st.session_state.get("semanas_mes", 4.2),
+                "turnos_semana": st.session_state.get("turnos_semana", 10.0),
+                "ocupacao_pct": st.session_state.get("ocupacao_pct", 50.0),
+                "horas_semanais_config": st.session_state.get("horas_semanais_config", 40.0)
+            }
         }
         try:
             supabase.table("app_state").upsert({"cliente_id": ID_CLIENTE, "state_data": dados}).execute()
@@ -143,6 +149,13 @@ def carregar_estado_nuvem():
                 custos_raw = dados.get("df_custos_categorias", {})
                 st.session_state["df_custos_categorias"] = {k: pd.DataFrame(v) for k, v in custos_raw.items()}
                 st.session_state["protocolos_db"] = dados.get("protocolos", [])
+                
+                config_gerais = dados.get("config_gerais", {})
+                st.session_state["semanas_mes"] = config_gerais.get("semanas_mes", 4.2)
+                st.session_state["turnos_semana"] = config_gerais.get("turnos_semana", 10.0)
+                st.session_state["ocupacao_pct"] = config_gerais.get("ocupacao_pct", 50.0)
+                st.session_state["horas_semanais_config"] = config_gerais.get("horas_semanais_config", 40.0)
+                
                 return True
         except Exception as e:
             st.error(f"Erro ao carregar dados da nuvem: {e}")
@@ -164,6 +177,10 @@ def inicializar_padroes_caso_vazio():
         {"Sala": "Sala 4 - Esteticista", "M2": 10.0},
         {"Sala": "Sala 5 - Consultório Terceiros", "M2": 12.0}
     ])
+    st.session_state["semanas_mes"] = 4.2
+    st.session_state["turnos_semana"] = 10.0
+    st.session_state["ocupacao_pct"] = 50.0
+    st.session_state["horas_semanais_config"] = 40.0
     st.session_state["df_custos_categorias"] = {
         "1. Despesas com Pessoal": pd.DataFrame([
             {"ÍTEM": "1.1 Folha de Pagamento CLT (com 13º)", "MENSAL (R$)": 0.0},
@@ -230,11 +247,40 @@ def inicializar_padroes_caso_vazio():
     st.session_state["protocolos_db"] = []
     salvar_estado_nuvem()
 
+def calcular_hora_clinica_global():
+    # 1. Calculo Despesa Mensal Media
+    despesa_mensal_media = 0.0
+    for categoria, df_atual in st.session_state.get("df_custos_categorias", {}).items():
+        tot_cat = pd.to_numeric(df_atual["MENSAL (R$)"], errors="coerce").fillna(0.0).sum() if not df_atual.empty else 0.0
+        despesa_mensal_media += tot_cat
+
+    # 2. Resgate de Configurações
+    semanas_mes = st.session_state.get("semanas_mes", 4.2)
+    ocupacao_pct = st.session_state.get("ocupacao_pct", 50.0)
+    horas_semanais_config = st.session_state.get("horas_semanais_config", 40.0)
+
+    # 3. Salas Produtivas
+    df_salas = st.session_state.get("df_salas", pd.DataFrame())
+    qtd_salas_produtivas = len(df_salas)
+
+    # 4. Cálculo Final
+    horas_mensais_por_sala = horas_semanais_config * semanas_mes
+    horas_totais_todas_salas = horas_mensais_por_sala * qtd_salas_produtivas
+    fator_ocupacao = (ocupacao_pct / 100) if ocupacao_pct > 0 else 1.0
+    horas_estimadas_ocupacao_global = horas_totais_todas_salas * fator_ocupacao
+
+    hora_clinica = despesa_mensal_media / horas_estimadas_ocupacao_global if horas_estimadas_ocupacao_global > 0 else 0.0
+    st.session_state["hora_clinica_global_real"] = hora_clinica
+    return hora_clinica
+
 if "dados_carregados" not in st.session_state or st.session_state["dados_carregados"] == False:
     carregou_nuvem = carregar_estado_nuvem()
     if not carregou_nuvem:
         inicializar_padroes_caso_vazio()
     st.session_state["dados_carregados"] = True
+
+# Força o calculo global da hora clinica independente de qual aba o usuario abrir primeiro
+calcular_hora_clinica_global()
 
 if "dias_uteis_eq" not in st.session_state:
     st.session_state["dias_uteis_eq"] = 22.0
@@ -257,7 +303,6 @@ def carregar_servico_para_estado(nome_servico):
     st.session_state["aliquota_imposto"] = float(taxas.get("aliquota_imposto", 6.0))
     st.session_state["preco_escolhido"] = float(dados.get("preco_escolhido", 0.0))
     st.session_state.setdefault("indireto", "Sim")
-    st.session_state.setdefault("valor_hora", 48.14)
     st.session_state["profissional_responsavel"] = dados.get("profissional_responsavel", "")
     st.session_state["publico_alvo"] = dados.get("publico_alvo", "")
     st.session_state["caracteristicas_servico"] = dados.get("caracteristicas_servico", "")
@@ -297,7 +342,6 @@ def inicializar_estado_ficha():
         st.session_state.setdefault("aliquota_imposto", 6.0)     
         st.session_state.setdefault("preco_escolhido", 0.0)
         st.session_state.setdefault("indireto", "Sim")
-        st.session_state.setdefault("valor_hora", 48.14)
         chaves_extras = ["profissional_responsavel", "publico_alvo", "caracteristicas_servico", "itens_inclusos", "tecnologias_utilizadas", "estrutura_fisica", "numero_sessoes", "intervalo_sessoes", "requisitos_procedimento", "preparo_procedimento", "cuidados_pos", "tempo_recuperacao", "contraindicacoes", "riscos_colaterais", "termo_consentimento", "beneficios_paciente", "diferenciais", "faq", "objecoes", "upsell", "material_apoio"]
         for k in chaves_extras: st.session_state.setdefault(k, "")
         return
@@ -402,7 +446,11 @@ def render_ficha_tecnica():
     with st.sidebar:
         st.header("⚙️ Parâmetros Globais")
         st.selectbox("Considerar custo de hora clínica como indireto?", ["Sim", "Não"], key="indireto")
-        st.number_input("Valor da Hora Clínica (R$)", min_value=0.0, step=1.0, format="%.2f", key="valor_hora")
+        
+        # Leitura da Hora Clínica gerada na aba de Rateio
+        valor_hora_atual = st.session_state.get("hora_clinica_global_real", 0.0)
+        st.markdown(f"**Valor da Hora Clínica:** R$ {valor_hora_atual:.2f}")
+        st.caption("*(Calculado automaticamente na aba Estrutura de Custos)*")
 
     cabecalho_padrao("PORTAL DE PRECIFICAÇÃO CLÍNICA")
 
@@ -524,7 +572,7 @@ def render_ficha_tecnica():
     st.write("")
     
     tempo_min = st.session_state.get("tempo_min", 60.0)
-    valor_hora = st.session_state.get("valor_hora", 48.14)
+    valor_hora = st.session_state.get("hora_clinica_global_real", 0.0)
     custo_execucao = (tempo_min / 60) * valor_hora if st.session_state.get("indireto") == "Sim" else 0.0
     
     df_maq = st.session_state.get("df_ficha_maquinas", df_maquinas_padrao())
@@ -710,7 +758,7 @@ def render_ficha_tecnica():
             st.write(f"👁️ Exibindo dados de **{len(servicos_selecionados)}** de **{total_cadastrados}** serviços cadastrados.")
             
             dados_comp = []
-            valor_hora_global = st.session_state.get("valor_hora", 48.14)
+            valor_hora_global = st.session_state.get("hora_clinica_global_real", 0.0)
             usa_indireto = st.session_state.get("indireto") == "Sim"
 
             for serv_nome in servicos_selecionados:
@@ -842,7 +890,7 @@ def render_ficha_tecnica():
                         for serv_nome in servicos_para_zip:
                             dados_s = st.session_state["db_servicos"][serv_nome]
                             t_min_z = dados_s.get("tempo_min", 60.0)
-                            v_hora_z = st.session_state.get("valor_hora", 48.14)
+                            v_hora_z = st.session_state.get("hora_clinica_global_real", 0.0)
                             usa_ind_z = st.session_state.get("indireto") == "Sim"
                             c_exec_z = (t_min_z / 60) * v_hora_z if usa_ind_z else 0.0
                             df_m_z = pd.DataFrame(dados_s.get("maquinas", []))
@@ -1354,10 +1402,10 @@ def render_custos_fixos():
         st.markdown("Configure as salas da sua clínica para descobrir o custo exato de cada espaço em M², por turno e por hora clínica. **Para calcular o número de salas com potencial produtivo e metragem total, basta adicionar as salas abaixo.**")
 
         col_c1, col_c2, col_c3, col_c4 = st.columns(4)
-        semanas_mes = col_c1.number_input("Semanas por Mês", value=4.2, step=0.1, help="Padrão utilizado na planilha é 4.2 semanas.")
-        turnos_semana = col_c2.number_input("Turnos na Semana", value=10.0, step=1.0, help="Ex: 2 turnos (Manhã/Tarde) x 5 dias = 10 turnos por sala")
-        ocupacao_pct = col_c3.number_input("% Ocupação Estimada", value=50.0, step=5.0, max_value=100.0)
-        horas_semanais_config = col_c4.number_input("Horas na Semana (Sala)", value=40.0, step=1.0, help="Quantas horas uma única sala funciona na semana.")
+        semanas_mes = col_c1.number_input("Semanas por Mês", step=0.1, key="semanas_mes", help="Padrão utilizado na planilha é 4.2 semanas.")
+        turnos_semana = col_c2.number_input("Turnos na Semana", step=1.0, key="turnos_semana", help="Ex: 2 turnos (Manhã/Tarde) x 5 dias = 10 turnos por sala")
+        ocupacao_pct = col_c3.number_input("% Ocupação Estimada", step=5.0, max_value=100.0, key="ocupacao_pct")
+        horas_semanais_config = col_c4.number_input("Horas na Semana (Sala)", step=1.0, key="horas_semanais_config", help="Quantas horas uma única sala funciona na semana.")
 
         st.divider()
         st.markdown("**1. Gerencie suas Salas e Metragens (M²):**")
@@ -1395,20 +1443,17 @@ def render_custos_fixos():
                     st.session_state["df_salas"] = pd.DataFrame(registros_salas)
                     st.rerun()
 
+        # Recalcula a hora clínica em tempo real para exibir no painel abaixo
+        hora_clinica_global_real = calcular_hora_clinica_global()
+
         df_salas_calc = st.session_state["df_salas"].copy()
         
         total_m2 = df_salas_calc["M2"].sum() if not df_salas_calc.empty else 0
         qtd_salas_produtivas = len(df_salas_calc)
         
         custo_por_m2 = despesa_mensal_media / total_m2 if total_m2 > 0 else 0
-
         horas_mensais_por_sala = horas_semanais_config * semanas_mes
-        horas_totais_todas_salas = horas_mensais_por_sala * qtd_salas_produtivas
-        
         fator_ocupacao = (ocupacao_pct / 100) if ocupacao_pct > 0 else 1.0
-        horas_estimadas_ocupacao_global = horas_totais_todas_salas * fator_ocupacao
-        
-        hora_clinica_global_real = despesa_mensal_media / horas_estimadas_ocupacao_global if horas_estimadas_ocupacao_global > 0 else 0
 
         if not df_salas_calc.empty:
             df_salas_calc["Custo Mensal por M2/Sala"] = df_salas_calc["M2"] * custo_por_m2
@@ -1785,7 +1830,7 @@ def render_protocolos():
     itens = st.session_state.protocolo_atual["itens"]
     if itens:
         dados_calculados = []
-        valor_hora_global = st.session_state.get("valor_hora", 48.14)
+        valor_hora_global = st.session_state.get("hora_clinica_global_real", 0.0)
         usa_ind = st.session_state.get("indireto") == "Sim"
 
         df_taxas_g = st.session_state.get("df_lista_taxas", pd.DataFrame())
