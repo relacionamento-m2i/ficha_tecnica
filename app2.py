@@ -1890,34 +1890,84 @@ def render_protocolos():
             st.dataframe(df_repasses.style.format({"Total Repasse": "R$ {:,.2f}"}), use_container_width=True, hide_index=True)
             st.metric("Total Pago à Equipe", f"R$ {repasse_tot:,.2f}")
 
-        def gerar_word_proposta(nome_pacote, desc, benef, df_itens, total_venda):
-            doc = Document()
-            doc.add_heading(f"Proposta Comercial: {nome_pacote}", 0)
-            if desc: doc.add_paragraph(f"Descrição: {desc}\n")
-            if benef: doc.add_paragraph(f"Benefícios: {benef}\n")
+        # ==============================================================
+        # NOVA LÓGICA DE PDF (Substituiu a função do Word)
+        # ==============================================================
+        def gerar_pdf_proposta(nome_pacote, desc, benef, df_itens, total_venda):
+            pdf = FPDF(format='A4')
             
-            doc.add_paragraph("Detalhes dos serviços inclusos no seu pacote personalizado.\n")
+            # PÁGINA 1: CAPA
+            caminho_pag1 = r"C:\Users\user\Downloads\Fichas Técnicas Código\playbook\pagina_1.png"
+            if os.path.exists(caminho_pag1):
+                pdf.add_page()
+                pdf.image(caminho_pag1, x=0, y=0, w=210, h=297) 
+
+            # PÁGINA 2: VISÃO GERAL (Com texto dinâmico sobre a faixa azul)
+            pdf.add_page()
+            caminho_pag2 = r"C:\Users\user\Downloads\Fichas Técnicas Código\playbook\pagina_2.png"
+            if os.path.exists(caminho_pag2):
+                pdf.image(caminho_pag2, x=0, y=0, w=210, h=297)
             
-            table = doc.add_table(rows=1, cols=3)
-            table.style = 'Table Grid'
-            hdr_cells = table.rows[0].cells
-            hdr_cells[0].text = 'Serviço'
-            hdr_cells[1].text = 'Quantidade'
-            hdr_cells[2].text = 'Subtotal (R$)'
+            lista_procedimentos = df_itens['Serviço'].unique()
+            procedimentos_str = ", ".join(lista_procedimentos)
+
+            pdf.set_text_color(255, 255, 255) 
+            pdf.set_xy(20, 150) # ATENÇÃO: Ajuste este 150 (Y) para o texto subir ou descer na imagem
             
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 8, "Objetivo.", 0, 1)
+            pdf.set_font("Arial", '', 14)
+            pdf.multi_cell(0, 8, "Organizar em um único documento a apresentação comercial dos principais produtos, padronizando a forma de explicar, ofertar e sustentar o fechamento comercial.")
+            pdf.ln(5)
+            
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 8, "Escopo.", 0, 1)
+            pdf.set_font("Arial", '', 14)
+            pdf.multi_cell(0, 8, f"Este material consolida os procedimentos de: {procedimentos_str}.")
+            pdf.ln(5)
+            
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 8, "Uso recomendado:", 0, 1)
+            pdf.set_font("Arial", '', 14)
+            pdf.multi_cell(0, 8, "Apoio ao time comercial, recepção, CRC e equipe clínica durante apresentação, qualificação, negociação e acompanhamento do paciente.")
+
+            # PÁGINA 3: PROPOSTA / PREÇOS
+            pdf.add_page()
+            
+            pdf.set_text_color(21, 158, 172)
+            pdf.set_font("Arial", 'B', 16)
+            pdf.set_xy(20, 30) 
+            pdf.cell(0, 10, f"Proposta Comercial: {nome_pacote.upper()}", 0, 1)
+            
+            pdf.set_text_color(50, 50, 50)
+            pdf.set_font("Arial", '', 11)
+            if desc: 
+                pdf.multi_cell(0, 6, f"Descrição: {desc}")
+            if benef: 
+                pdf.multi_cell(0, 6, f"Benefício: {benef}")
+            
+            pdf.ln(10)
+            
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(100, 8, "Serviço", border=1, fill=False)
+            pdf.cell(30, 8, "Quantidade", border=1, fill=False, align='C')
+            pdf.cell(40, 8, "Subtotal (R$)", border=1, fill=False, align='R')
+            pdf.ln()
+            
+            pdf.set_font("Arial", '', 11)
             for index, row in df_itens.iterrows():
-                row_cells = table.add_row().cells
-                row_cells[0].text = str(row['Serviço'])
-                row_cells[1].text = f"{row['Qtde']} sessões"
-                row_cells[2].text = f"R$ {row['Venda (R$)']:,.2f}"
+                nome_serv = str(row['Serviço'])[:45] 
+                pdf.cell(100, 8, nome_serv, border=1)
+                pdf.cell(30, 8, f"{row['Qtde']}x", border=1, align='C')
+                pdf.cell(40, 8, f"R$ {row['Venda (R$)']:,.2f}", border=1, align='R')
+                pdf.ln()
                 
-            p = doc.add_paragraph("\n")
-            p.add_run(f"Valor Total do Investimento: R$ {total_venda:,.2f}").bold = True
-            
-            buffer = io.BytesIO()
-            doc.save(buffer)
-            buffer.seek(0)
-            return buffer
+            pdf.ln(5)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(130, 8, "Investimento Total:", 0, 0, 'R')
+            pdf.cell(40, 8, f"R$ {total_venda:,.2f}", 0, 1, 'R')
+
+            return bytes(pdf.output())
 
         st.write("")
         c_save1, c_save2 = st.columns(2)
@@ -1928,12 +1978,12 @@ def render_protocolos():
                 salvar_estado_nuvem()
                 st.success("Protocolo arquivado com sucesso!")
         with c_save2:
-            arquivo_word = gerar_word_proposta(st.session_state.protocolo_atual["nome"], st.session_state.protocolo_atual["descricao"], st.session_state.protocolo_atual["beneficio"], df_prot, venda_tot)
+            arquivo_pdf = gerar_pdf_proposta(st.session_state.protocolo_atual["nome"], st.session_state.protocolo_atual["descricao"], st.session_state.protocolo_atual["beneficio"], df_prot, venda_tot)
             st.download_button(
-                label="📄 Gerar Proposta (Word)",
-                data=arquivo_word,
-                file_name=f"Proposta_{st.session_state.protocolo_atual['nome']}.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                label="📄 Baixar Proposta Final (PDF)",
+                data=arquivo_pdf,
+                file_name=f"Proposta_{st.session_state.protocolo_atual['nome']}.pdf",
+                mime="application/pdf",
                 use_container_width=True
             )
 

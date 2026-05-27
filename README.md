@@ -78,3 +78,18 @@ Código de cores:
 Objetivo. Organizar em um único documento a apresentação comercial dos principais produtos da Dra. Thacira Dantas, padronizando a forma de explicar, ofertar e sustentar o fechamento comercial.
 Escopo. Este material consolida [Serviços da ficha técnica].
 Uso recomendado. Apoio ao time comercial, recepção, CRC e equipe clínica durante apresentação, qualificação, negociação e acompanhamento do paciente.
+
+página 1:
+fonte:  Aptos 11, exemplo de texto: Março de 2026
+
+
+página 2:
+
+Objetivo. Organizar em um único documento a apresentação comercial dos principais produtos da Dra. Thacira Dantas, padronizando a forma de explicar, ofertar e sustentar o fechamento comercial.
+Escopo. Este material consolida Endolaser, Bomba Pneumática, T Sculptor, Laser Transdérmico, Espuma Ecoguiada, Lipedema+, Radiofrequência Microagulhada e Escleroterapia Avulsa.
+Uso recomendado. Apoio ao time comercial, recepção, CRC e equipe clínica durante apresentação, qualificação, negociação e acompanhamento do paciente.
+
+
+Produto, Proposta principal, Formato Comercial
+
+
